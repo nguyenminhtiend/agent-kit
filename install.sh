@@ -12,13 +12,16 @@
 #          the guard hook to the project settings, then runs 'agent-kit init'.
 #
 # Options:
-#   --force     replace things that are in the way (the old ones are backed up)
-#   --dry-run   only print what would happen
+#   --force             replace things that are in the way (old ones are backed up)
+#   --dry-run           only print what would happen
+#   --workspace DIR     project: folder for brief/, docs/, tasks/ (default: project root)
+#   --scripts-dir DIR   project: where the wrapper scripts go (default: scripts; none = skip)
 set -euo pipefail
 
 KIT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 TS="$(date +%Y%m%d-%H%M%S)"
 TARGET="" SCOPE="" PROJECT="" FORCE=0 DRY=0 UNINSTALL=0 CONFLICTS=0 BACKUP_ROOT=""
+WORKSPACE="" SCRIPTS_DIR="scripts"
 
 CLAUDE_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
 CODEX_DIR="${CODEX_HOME:-$HOME/.codex}"
@@ -39,7 +42,7 @@ say()  { printf '%s\n' "$*"; }
 info() { printf '==> %s\n' "$*"; }
 warn() { printf 'warning: %s\n' "$*" >&2; }
 die()  { printf 'error: %s\n' "$*" >&2; exit 1; }
-usage() { sed -n '2,17p' "$KIT/install.sh" | sed 's/^# \{0,1\}//'; exit "${1:-0}"; }
+usage() { sed -n '2,19p' "$KIT/install.sh" | sed 's/^# \{0,1\}//'; exit "${1:-0}"; }
 
 # Run a command, or only print it with --dry-run.
 run() { if [ "$DRY" -eq 1 ]; then printf '  would: %s\n' "$*"; else "$@"; fi; }
@@ -130,15 +133,18 @@ gen_codex_agents() {
 }
 
 gen_wrappers() {
-  local out="$KIT/dist/wrappers" c
+  local out="$KIT/dist/wrappers" c up
   [ "$DRY" -eq 1 ] && return 0
+  # One "../" per folder level of SCRIPTS_DIR leads back to the project root.
+  up="$(printf '%s\n' "$SCRIPTS_DIR" | awk -F/ '{ for (i = 1; i <= NF; i++) printf "../" }')"
+  up="${up%/}"
   rm -rf "$out"
   mkdir -p "$out"
   for c in $WRAPPER_COMMANDS; do
     cat > "$out/$c.sh" <<EOF
 #!/usr/bin/env bash
 # Added by agent-kit. Same as: agent-kit $c
-exec "\$(cd "\$(dirname "\${BASH_SOURCE[0]}")/.." && pwd)/.agent-kit/bin/agent-kit" $c "\$@"
+exec "\$(cd "\$(dirname "\${BASH_SOURCE[0]}")/$up" && pwd)/.agent-kit/bin/agent-kit" $c "\$@"
 EOF
     chmod +x "$out/$c.sh"
   done
@@ -245,9 +251,11 @@ install_project() {
     say "  copied  $dest (runner, guard hook, schemas, rules, templates, skills, agents)"
   fi
 
-  info "scripts: $PROJECT/scripts"
-  gen_wrappers
-  for c in $WRAPPER_COMMANDS; do copy_item "$KIT/dist/wrappers/$c.sh" "$PROJECT/scripts/$c.sh"; done
+  if [ "$SCRIPTS_DIR" != none ]; then
+    info "scripts: $PROJECT/$SCRIPTS_DIR"
+    gen_wrappers
+    for c in $WRAPPER_COMMANDS; do copy_item "$KIT/dist/wrappers/$c.sh" "$PROJECT/$SCRIPTS_DIR/$c.sh"; done
+  fi
 
   if want claude; then
     info "Claude Code (project): $PROJECT/.claude"
@@ -265,17 +273,23 @@ install_project() {
   fi
 
   info "project files"
+  local ws_flag=""
+  [ -z "$WORKSPACE" ] || ws_flag="--workspace $WORKSPACE"
   if [ "$DRY" -eq 1 ]; then
-    say "  would run: $dest/bin/agent-kit init --dir $PROJECT"
+    say "  would run: $dest/bin/agent-kit $ws_flag init --dir $PROJECT"
   else
-    "$dest/bin/agent-kit" init --dir "$PROJECT"
+    # shellcheck disable=SC2086  # ws_flag is empty or two words without spaces
+    "$dest/bin/agent-kit" $ws_flag init --dir "$PROJECT"
   fi
 
   say ""
   if want codex; then
     say "Codex: open Codex in the project and run /hooks to trust the guard hook. Untrusted hooks do not run."
   fi
-  say "Commit these: .agent-kit/ scripts/ AGENTS.md CLAUDE.md agent-kit.toml brief/ .gitignore"
+  local scripts=""
+  [ "$SCRIPTS_DIR" = none ] || scripts="$SCRIPTS_DIR/ "
+  say "Commit these: .agent-kit/ ${scripts}AGENTS.md CLAUDE.md agent-kit.toml .gitignore"
+  say "              and the workspace: brief/ docs/ tasks/ .workflow/ in ${WORKSPACE:-the folder set in agent-kit.toml}"
   want claude && say "              .claude/skills/ .claude/agents/ .claude/settings.json"
   want codex && say "              .agents/skills/ .codex/agents/ .codex/hooks.json"
   return 0
@@ -291,6 +305,8 @@ while [ $# -gt 0 ]; do
     --force)     FORCE=1; shift ;;
     --dry-run)   DRY=1; shift ;;
     --uninstall) UNINSTALL=1; shift ;;
+    --workspace) [ $# -ge 2 ] || usage 1; WORKSPACE="$2"; shift 2 ;;
+    --scripts-dir) [ $# -ge 2 ] || usage 1; SCRIPTS_DIR="${2%/}"; shift 2 ;;
     -h|--help)   usage 0 ;;
     *)           warn "unknown option: $1"; usage 1 ;;
   esac
@@ -303,6 +319,13 @@ if want codex; then
   printf 'a = 1\n' | yq -p toml -oy '.a' >/dev/null 2>&1 ||
     die "yq v4 (mikefarah) is required to build Codex agents (brew install yq)"
 fi
+[ -z "$WORKSPACE" ] || [ "$SCOPE" = project ] ||
+  die "--workspace is for project installs. After a global install run: agent-kit --workspace DIR init"
+case "$SCRIPTS_DIR" in
+  none) ;;
+  ""|/*|..|../*|*/..|*/../*|.agent-kit|.agent-kit/*) die "--scripts-dir must be a folder inside the project, or none" ;;
+esac
+printf '%s\n' "$SCRIPTS_DIR" | grep -Eq '^[A-Za-z0-9._][A-Za-z0-9._/-]*$' || die "--scripts-dir may only use letters, digits, '.', '_', '-' and '/'"
 [ "$DRY" -eq 1 ] && info "dry run: nothing will change"
 
 if [ "$UNINSTALL" -eq 1 ]; then

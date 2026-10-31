@@ -22,8 +22,9 @@ ak_doctor() {
   if root="$(find_project_root)"; then
     ok "project: $root"
     if command -v jq >/dev/null 2>&1 && command -v yq >/dev/null 2>&1; then
-      if (cd "$root" && load_config); then ok "$AK_CONFIG_FILE"
-      else bad=1; fi
+      if (cd "$root" && load_config && ok "$AK_CONFIG_FILE" && ws="$(workspace_rel)" &&
+          if [ -d "$ws" ]; then ok "workspace: $ws"; else warn "workspace $ws does not exist yet (run 'agent-kit init --workspace $ws')"; fi)
+      then :; else bad=1; fi
     fi
   else warn "no agent-kit.toml here or above (run 'agent-kit init' in your project)"; fi
 

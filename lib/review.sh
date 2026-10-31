@@ -58,7 +58,7 @@ ak_review() {
 
     info "repair: $blocking blocking findings"
     engine_run "repair-round-$round" repair "docs/" \
-      "/repair-specs Fix the findings in the \"blocking\" list of $dir/summary.json. Update the affected documents in docs/ and every later document that depends on them. Do not create or change application code." \
+      "/repair-specs Repair round $round. Fix the findings in the \"blocking\" list of $dir/summary.json. Update the affected spec documents and every later one that depends on them. Do not create or change application code." \
       --model "$(cfg .models.spec opus)" \
       --permission-mode acceptEdits \
       --tools "Read,Write,Edit,Glob,Grep" >/dev/null ||
@@ -73,7 +73,7 @@ review_one() {
   local agent="$1" schema="$2" outfile="$3" out definition
   definition="$(engine_agent_definition "$agent")" || return 1
   out="$(engine_run "review-$agent" review "" \
-    "Review the spec documents: brief/ and docs/01 to docs/06. Follow your reviewer instructions. Report every finding in the structured output." \
+    "Review the spec documents: the brief, then requirements to validation. Follow your reviewer instructions. Report every finding in the structured output." \
     --agent "$agent" \
     --agents "$definition" \
     --model "$(cfg .models.review opus)" \

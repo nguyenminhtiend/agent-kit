@@ -1,6 +1,12 @@
 # agent-kit settings for this project.
 # Only the agent-kit runner reads this file. Claude Code and Codex do not.
 
+[paths]
+# Folder for brief/, docs/, tasks/ and .workflow/, relative to this file. "." = here.
+# Existing project: use a new folder (e.g. "specs") so nothing mixes with your own
+# docs/ or tasks/. One folder per feature: agent-kit --workspace specs/<feature> ...
+workspace = "."
+
 [workflow]
 # Positive integer: review -> repair rounds before the pipeline stops as BLOCKED.
 max_review_cycles = 3
@@ -24,7 +30,8 @@ agents = ["product-reviewer", "architecture-reviewer", "qa-reviewer"]
 block_on = ["critical", "major"]
 
 [verify]
-# Commands for this project's stack. The build stage will use them (not built yet).
+# Commands for this project's stack. Build skills run them; empty = found from
+# AGENTS.md, README, build scripts or CI.
 test = ""
 lint = ""
 typecheck = ""

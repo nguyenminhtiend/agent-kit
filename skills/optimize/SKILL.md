@@ -6,12 +6,12 @@ disable-model-invocation: true
 
 ## When to use
 
-- A measured problem: an unmet performance NFR, a benchmark or test showing a slowdown, or reported slowness or cost (time, memory, CPU, queries, money).
+- A measured problem: an unmet performance requirement, a benchmark or test showing a slowdown, or reported slowness or cost (time, memory, CPU, queries, money).
 - Not without evidence, and not for wrong output (`fix-bug` first).
 
 ## Method
 
-1. Before touching code, write down: the operation; the objective metric and target (from the NFR or report) with unit and better direction; the workload (input size, load, number of runs); guardrails (other metrics with allowed regression, e.g. "p95 may rise ≤10%"); the correctness gate (test command from `[verify]`, filled from AGENTS.md, README, build scripts or CI if empty; an empty command is no gate); the attempt or time budget.
+1. Before touching code, write down: the operation; the objective metric and target (from the requirement or report) with unit and better direction; the workload (input size, load, number of runs); guardrails (other metrics with allowed regression, e.g. "p95 may rise ≤10%"); the correctness gate (test command from `[verify]` in `agent-kit.toml` if the project has one, else from AGENTS.md, CLAUDE.md, README, build scripts or CI; an empty command is no gate); the attempt or time budget.
 2. Baseline: one repeatable command (benchmark, harness, load test, `EXPLAIN ANALYZE`) measuring the objective itself (p95 means p95, not median; memory or cost means that). Fix workload and conditions (data; warm or cold cache, stated). Run several times; record the metric, guardrails and run-to-run spread (noise).
 3. Find the hot spot with a profiler, query log or trace, not a guess. Usual suspects: N+1 queries, unbounded fetches, missing or unused indexes, repeated work in loops, blocking I/O on hot paths, recomputed expensive results.
 4. Change one thing: the simplest fix for that hot spot.

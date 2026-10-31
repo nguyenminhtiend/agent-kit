@@ -16,7 +16,7 @@ set -euo pipefail
 prompt="$2"
 shift 2
 
-agent="" has_settings=0 has_schema=0 tools="" definitions="{}"
+agent="" has_settings=0 has_schema=0 tools="" definitions="{}" add_dir=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --agent)       agent="$2"; shift 2 ;;
@@ -24,9 +24,14 @@ while [ $# -gt 0 ]; do
     --json-schema) has_schema=1; shift 2 ;;
     --settings)    has_settings=1; shift 2 ;;
     --tools)       tools="$2"; shift 2 ;;
+    --add-dir)     add_dir="$2"; shift 2 ;;
     *)             shift ;;
   esac
 done
+
+case "$prompt" in *"Documents (paths from the current folder):"*"- technical spec: "*) ;; *)
+  echo "fake-claude: the prompt has no document map" >&2; exit 1 ;;
+esac
 
 skill="${AGENT_KIT_SKILL:-}"
 if [ -n "$skill" ]; then
@@ -43,9 +48,9 @@ if [ -n "$agent" ]; then
 fi
 
 if [ -n "${FAKE_CLAUDE_LOG:-}" ]; then
-  printf 'skill=%s agent=%s stage=%s allow=%s settings=%s schema=%s tools=%s\n' \
+  printf 'skill=%s agent=%s stage=%s allow=%s settings=%s schema=%s tools=%s adddir=%s cwd=%s\n' \
     "$skill" "$agent" "${AGENT_KIT_STAGE:-}" "${AGENT_KIT_WRITE_ALLOW:-}" \
-    "$has_settings" "$has_schema" "$tools" >> "$FAKE_CLAUDE_LOG"
+    "$has_settings" "$has_schema" "$tools" "$add_dir" "$(pwd -P)" >> "$FAKE_CLAUDE_LOG"
 fi
 
 result() {

@@ -3,18 +3,44 @@
 
 AK_CONFIG_FILE="agent-kit.toml"
 
-# Spec stages in run order: "<skill>:<document it writes>".
-AK_SPEC_STAGES="discover:docs/01-requirements.md
-define-product:docs/02-prd.md
-design-ux:docs/03-ux-design.md
-design-architecture:docs/04-architecture.md
-design-technical:docs/05-technical-spec.md
-validate-feasibility:docs/06-validation.md"
-
+# Document paths inside the workspace. Skills and agents name documents only by
+# role ("the PRD"); doc_map tells Claude where each one is. Change names here only.
 AK_BRIEF="brief/requirements.md"
 AK_BRIEF_MARKER="agent-kit:brief-template"
+AK_DOC_REQUIREMENTS="docs/01-requirements.md"
+AK_DOC_PRD="docs/02-prd.md"
+AK_DOC_UX="docs/03-ux-design.md"
+AK_DOC_ARCHITECTURE="docs/04-architecture.md"
+AK_DOC_TECHNICAL="docs/05-technical-spec.md"
+AK_DOC_VALIDATION="docs/06-validation.md"
 AK_PLAN_DOC="docs/07-implementation-plan.md"
 AK_READINESS_DOC="docs/08-readiness.md"
+AK_TASK_FILE="tasks/NNN-short-name/task.md"
+
+# Spec stages in run order: "<skill>:<document it writes>".
+AK_SPEC_STAGES="discover:$AK_DOC_REQUIREMENTS
+define-product:$AK_DOC_PRD
+design-ux:$AK_DOC_UX
+design-architecture:$AK_DOC_ARCHITECTURE
+design-technical:$AK_DOC_TECHNICAL
+validate-feasibility:$AK_DOC_VALIDATION"
+
+# Sent with every runner call: which path holds which document.
+doc_map() {
+  cat <<EOF
+Documents (paths from the current folder):
+- brief: $(dirname "$AK_BRIEF")/ (start with $AK_BRIEF)
+- requirements: $AK_DOC_REQUIREMENTS
+- PRD: $AK_DOC_PRD
+- UX design: $AK_DOC_UX
+- architecture: $AK_DOC_ARCHITECTURE
+- technical spec: $AK_DOC_TECHNICAL
+- validation: $AK_DOC_VALIDATION
+- plan: $AK_PLAN_DOC
+- task files: $AK_TASK_FILE, one folder per task, numbered in build order
+- readiness report: $AK_READINESS_DOC
+EOF
+}
 
 # Files only the runner (or a person) may write. The guard hook protects them.
 AK_REVIEW_STATE=".workflow/state/review.json"
@@ -47,13 +73,44 @@ find_project_root() {
   done
 }
 
-# Move to the project root and make sure the working folders exist.
+# The workspace holds brief/, docs/, tasks/ and .workflow/ for one piece of work.
+# Order: --workspace / AGENT_KIT_WORKSPACE, then [paths] workspace, then ".".
+# Prints the path relative to the project root. Call from the project root.
+workspace_rel() {
+  local ws="${AGENT_KIT_WORKSPACE:-}"
+  [ -n "$ws" ] || ws="$(cfg .paths.workspace .)" || return 1
+  while :; do case "$ws" in ./*) ws="${ws#./}" ;; */) ws="${ws%/}" ;; *) break ;; esac; done
+  [ -n "$ws" ] || ws=.
+  printf '%s\n' "$ws" | grep -Eq '^[A-Za-z0-9._][A-Za-z0-9._/-]*$' || {
+    fail "workspace must be a relative path of letters, digits, '.', '_', '-' and '/': $ws"
+    return 1
+  }
+  case "/$ws/" in
+    */../*|*//*) fail "workspace must stay inside the project: $ws"; return 1 ;;
+  esac
+  case "$ws" in
+    .agent-kit|.agent-kit/*|.agent-kit-backup*|.git|.git/*|.workflow|.workflow/*|*/.workflow|*/.workflow/*)
+      fail "workspace may not be inside a folder agent-kit or git manages: $ws"; return 1 ;;
+  esac
+  printf '%s\n' "$ws"
+}
+
+# Move to the workspace (inside the project) and make sure its folders exist.
 enter_project() {
-  local root
+  local root ws
   root="$(find_project_root)" || die "no $AK_CONFIG_FILE here or above. Run 'agent-kit init' first."
   cd "$root"
-  export AGENT_KIT_PROJECT_DIR="$root"
   load_config || die "invalid $AK_CONFIG_FILE; fix it before running the pipeline"
+  ws="$(workspace_rel)" || die "invalid workspace"
+  [ -d "$ws" ] || die "workspace not found: $ws. Run 'agent-kit init --workspace $ws' first."
+  cd -P "$ws"
+  case "$(pwd -P)/" in
+    "$root"/*) ;;
+    *) die "workspace $ws resolves outside the project" ;;
+  esac
+  AK_WS="$ws"
+  export AGENT_KIT_PROJECT_DIR="$root" AGENT_KIT_WORKSPACE_DIR="$(pwd -P)"
+  [ "$ws" = . ] || info "workspace: $ws"
   check_no_symlinks brief docs tasks || die "the baseline must contain regular files and directories"
   mkdir -p docs tasks .workflow/state .workflow/reviews .workflow/logs .workflow/approvals
 }
@@ -69,6 +126,8 @@ load_config() {
     def positive_integer: type == "number" and . > 0 and floor == .;
     def nonempty_string: type == "string" and length > 0;
     type == "object"
+    and (if has("paths") then .paths | type == "object"
+         and (if has("workspace") then .workspace | nonempty_string else true end) else true end)
     and (if has("workflow") then .workflow | type == "object"
          and (if has("max_review_cycles") then .max_review_cycles | positive_integer else true end) else true end)
     and (if has("models") then .models | type == "object"
@@ -84,7 +143,7 @@ load_config() {
     and (if has("verify") then .verify | type == "object"
          and all(to_entries[] | select(.key == "test" or .key == "lint" or .key == "typecheck" or .key == "build"); .value | type == "string") else true end)
   ' >/dev/null 2>&1 || {
-    fail "$AK_CONFIG_FILE has invalid settings (check section types, positive turn/review limits, nonnegative budget, models and review lists)"
+    fail "$AK_CONFIG_FILE has invalid settings (check section types, workspace, positive turn/review limits, nonnegative budget, models and review lists)"
     return 1
   }
 }

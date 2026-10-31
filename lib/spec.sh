@@ -29,7 +29,7 @@ ak_spec() {
 
     info "spec: $skill -> $output"
     engine_run "$skill" spec "$output" \
-      "/$skill Read the brief and the upstream documents in docs/. Write $output. Do not create or change application code." \
+      "/$skill Read the brief and the earlier documents you need. Write $output. Do not create or change application code." \
       --model "$(cfg .models.spec opus)" \
       --permission-mode acceptEdits \
       --tools "Read,Write,Edit,Glob,Grep" >/dev/null ||

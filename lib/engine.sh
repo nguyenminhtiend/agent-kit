@@ -58,6 +58,18 @@ Stage request: ${prompt#* }"
       ;;
   esac
 
+  prompt="$prompt
+
+$(doc_map)"
+
+  # Claude runs inside the workspace. When that is a subfolder, it may still
+  # read the project's code and docs; the guard keeps its writes in the workspace.
+  if [ "${AGENT_KIT_WORKSPACE_DIR:-}" != "${AGENT_KIT_PROJECT_DIR:-}" ]; then
+    prompt="$prompt
+The current folder is the workspace $AK_WS. The project's code and other docs are in $AGENT_KIT_PROJECT_DIR."
+    set -- --add-dir "$AGENT_KIT_PROJECT_DIR" "$@"
+  fi
+
   set -- --output-format json \
          --permission-prompts none \
          --max-turns "$turns" \

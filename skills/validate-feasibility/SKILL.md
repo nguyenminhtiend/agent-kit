@@ -1,17 +1,19 @@
 ---
 name: validate-feasibility
-description: Spec stage 6. Check the specs fit the time and constraints (docs/06-validation.md).
+description: Spec stage 6. Check the specs fit the time and constraints (the validation document).
 disable-model-invocation: true
 ---
 
 ## Reads
 
-- `brief/requirements.md`
-- `docs/01-requirements.md` to `docs/05-technical-spec.md`
+Documents are named by role. Paths: from the request; else find the project's matching files.
+
+- The brief
+- The requirements, PRD, UX design, architecture and technical spec
 
 ## Writes
 
-- `docs/06-validation.md` only
+- The validation document only
 
 ## Required sections
 
@@ -25,7 +27,7 @@ disable-model-invocation: true
 
 Check the plan; don't improve it. Use only what the docs say; a claim without evidence is an unknown.
 
-1. Budget: deadline, team size and skills, required tech, submission rules (missing → assumption, lower confidence). Convert to build time (days or sessions).
+1. Budget: deadline, team size and skills, required tech, external rules (missing → assumption, lower confidence). Convert to build time (days or sessions).
 2. Table for every FR and NFR: ID | priority | size | depends on | hardest part | rating | why. Size XS–XL is a scope label (XL must split), not time; never add sizes. Rating: OK, Risky (needs an unknown to go well), Blocked. An NFR with no way to measure it is Risky.
 3. List claims the specs rely on but don't prove ("the API allows X", "the free tier is enough", "the model can do Y"), plus hidden coupling, all-at-once dependencies and gaps between docs. Each goes under "Problems found" with doc and section.
 4. Assumptions: must be true (else it fails), should be true (else change approach), might be true (extras).
@@ -35,9 +37,9 @@ Check the plan; don't improve it. Use only what the docs say; a claim without ev
    Ordinary risks need not be solved before approval. For the 3–5 riskiest build-time unknowns, write a spike: one sharp question; type (research, prototype, setup); time box; pass signal; fallback and its cost; evidence delivered. Spikes give answers, not feature code. Unsharp questions go under "Not yet clear".
 6. Fit: estimate distinct work packages (shared work counted once) as ranges in days or sessions, with assumptions. Add setup, integration, spikes, deploy and demo prep. Compare the critical path and total with capacity. Red flags: months of work, many parts that must all work at once, missing skills.
 7. Cuts, two lists:
-   - Required cuts: needed to fit at all. IDs, time saved, user loss, remaining scope, new total. Each is an owner decision in `### Open decisions` until docs/02–05 reflect it.
+   - Required cuts: needed to fit at all. IDs, time saved, user loss, remaining scope, new total. Each is an owner decision in `### Open decisions` until the PRD, UX design, architecture and technical spec reflect it.
    - Contingency cuts: optional, ordered (extras, low-priority FRs, polish); may stay scheduled last.
-   Never cut a brief must-have or submission rule; if one must go, the verdict changes.
+   Never cut a brief must-have or external rule; if one must go, the verdict changes.
 8. Verdict, after reading as a skeptic (simpler way?), pragmatist (ships on time?) and critic (what fails?):
    - feasible: every must-have OK, or Risky with a budgeted build-time spike and fallback; fits with no required cuts.
    - feasible with cuts: fits only after the required cuts, which the owner must approve.

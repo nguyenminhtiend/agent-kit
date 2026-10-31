@@ -9,7 +9,7 @@ ak_plan() {
 
   info "plan: plan-tasks -> $AK_PLAN_DOC and tasks/"
   engine_run plan-tasks plan "$AK_PLAN_DOC:tasks/" \
-    "/plan-tasks Read the reviewed spec documents in docs/. Write $AK_PLAN_DOC and one tasks/NNN-short-name/task.md file per task. Do not create or change application code." \
+    "/plan-tasks Read the reviewed spec documents. Write $AK_PLAN_DOC and one task file per task ($AK_TASK_FILE). Do not create or change application code." \
     --model "$(cfg .models.plan opus)" \
     --permission-mode acceptEdits \
     --tools "Read,Write,Edit,Glob,Grep" >/dev/null ||
@@ -20,10 +20,11 @@ ak_plan() {
   require_review_pass
 
   info "plan: assess-readiness -> $AK_READINESS_DOC"
-  local out base input_hash current_hash
+  local out base input_hash current_hash summary
+  summary="$(jq -r .last_review "$AK_REVIEW_STATE")/summary.json"
   input_hash="$(readiness_input_hash)" || die "cannot hash the readiness inputs"
   out="$(engine_run assess-readiness readiness "$AK_READINESS_DOC" \
-    "/assess-readiness Check if the specs in docs/ and the tasks in tasks/ are ready for implementation. Write $AK_READINESS_DOC. Return the verdict in the structured output." \
+    "/assess-readiness Check if the specs, the plan and the task files are ready for implementation. The last spec review passed; its findings are in $summary. Write $AK_READINESS_DOC. Return the verdict in the structured output." \
     --model "$(cfg .models.plan opus)" \
     --permission-mode acceptEdits \
     --tools "Read,Write,Edit,Glob,Grep" \

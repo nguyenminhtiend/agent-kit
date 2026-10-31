@@ -25,7 +25,10 @@ check_rc() {
 }
 
 # A clean environment for the installer (ignore the caller's own config dirs).
-clean_env() { env -u CLAUDE_CONFIG_DIR -u CODEX_HOME -u AGENT_KIT_STAGE -u AGENT_KIT_WRITE_ALLOW -u AGENT_KIT_PROJECT_DIR "$@"; }
+clean_env() {
+  env -u CLAUDE_CONFIG_DIR -u CODEX_HOME -u AGENT_KIT_STAGE -u AGENT_KIT_WRITE_ALLOW -u AGENT_KIT_PROJECT_DIR \
+    -u AGENT_KIT_WORKSPACE -u AGENT_KIT_WORKSPACE_DIR "$@"
+}
 
 # ---------------------------------------------------------------------------
 echo "== syntax"
@@ -54,6 +57,10 @@ for f in "$KIT"/agents/*.md; do
   a="$(basename "$f" .md)"
   check "agent $a: name matches file" test "$(fm .name "$f")" = "$a"
   check "agent $a: read-only tools" test "$(fm .tools "$f")" = "Read, Grep, Glob"
+done
+for f in "$KIT"/skills/*/SKILL.md "$KIT"/agents/*.md; do
+  # Documents are named by role; only the runner knows paths (lib/common.sh doc_map).
+  check_fails "no workspace paths in ${f#"$KIT"/}" grep -nE '(^|[^A-Za-z])(docs|brief|tasks|schemas)/|\.workflow|requirements\.md' "$f"
 done
 for f in "$KIT"/schemas/*.json; do check "valid JSON ${f#"$KIT"/}" jq empty "$f"; done
 check "template agent-kit.toml parses" yq -p toml -oy . "$KIT/templates/project/agent-kit.toml"
@@ -135,7 +142,7 @@ check "init: agent-kit.toml"            test -f "$P/agent-kit.toml"
 check "init: brief template"            grep -q agent-kit:brief-template "$P/brief/requirements.md"
 check "init: AGENTS.md rules block"     grep -q "## Engineering rules" "$P/AGENTS.md"
 check "init: CLAUDE.md imports AGENTS"  grep -q '@AGENTS.md' "$P/CLAUDE.md"
-check "init: gitignore"                 grep -qx '.workflow/logs/' "$P/.gitignore"
+check "init: gitignore"                 grep -qxF '**/.workflow/logs/' "$P/.gitignore"
 check "re-install is clean"             pi
 check "rules block not duplicated"      test "$(grep -c 'agent-kit:rules:start' "$P/AGENTS.md")" -eq 1
 check "guard hook not duplicated"       test "$(jq '[.hooks.PreToolUse[].hooks[].command | select(contains("guard.sh"))] | length' "$P/.claude/settings.json")" -eq 1
@@ -175,10 +182,13 @@ check_fails "approve refuses without a terminal" ak env -u CLAUDECODE ./scripts/
 check_fails "approve refuses inside an agent" ak env CLAUDECODE=1 ./scripts/approve.sh
 
 # 'expect' gives approve a real terminal, like a person typing.
+#   approve_in_terminal [DIR [COMMAND...]]
 approve_in_terminal() {
-  (cd "$P" && env -u CLAUDECODE expect -c '
+  local dir="${1:-$P}"
+  [ $# -gt 0 ] && shift
+  (cd "$dir" && clean_env -u CLAUDECODE AK_APPROVE_CMD="${*:-./scripts/approve.sh}" expect -c '
     set timeout 30
-    spawn ./scripts/approve.sh
+    eval spawn $env(AK_APPROVE_CMD)
     expect {
       "Type APPROVE" { send "APPROVE\r" }
       timeout { exit 1 }

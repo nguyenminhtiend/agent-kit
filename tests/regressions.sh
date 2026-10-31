@@ -166,3 +166,110 @@ check "a stable rerun can review the changed baseline" rk .agent-kit/bin/agent-k
 check "readiness rejects a task edited while it is being assessed" stage_race FAKE_READINESS_BARRIER plan 1 tasks/001-setup/task.md 'changed during readiness assessment'
 check "interrupted readiness does not leave a passing verdict" test ! -e "$RP/.workflow/state/readiness.json"
 check "stable inputs can be reassessed after a concurrent edit" rk .agent-kit/bin/agent-kit plan
+
+echo "== guard in workspaces"
+GW="$GP/specs/a"
+mkdir -p "$GW/docs" "$GW/.workflow/state" "$GW/.workflow/approvals"
+guard_ws() {
+  local stage="${3:-}" allow="${4:-}"
+  jq -nc --arg t "$1" --arg c "$GW" --argjson i "$2" '{tool_name: $t, cwd: $c, tool_input: $i}' |
+    clean_env AGENT_KIT_PROJECT_DIR="$GP" AGENT_KIT_WORKSPACE_DIR="$GW" \
+      ${stage:+AGENT_KIT_STAGE="$stage"} ${allow:+AGENT_KIT_WRITE_ALLOW="$allow"} "$G"
+}
+check_rc "normal session: a workspace's state blocked"      2 guard Write "{\"file_path\":\"$GW/.workflow/state/review.json\"}"
+check_rc "normal session: a workspace's approvals blocked"  2 guard Edit "{\"file_path\":\"$GW/.workflow/approvals/spec-approved.json\"}"
+check_rc "bash: a workspace's state blocked"                2 guard Bash '{"command":"rm specs/a/.workflow/state/review.json"}'
+check_rc "codex: a workspace's approvals blocked"           2 guard apply_patch '{"command":"*** Begin Patch\n*** Add File: specs/a/.workflow/approvals/x.json\n+{}\n*** End Patch"}'
+check_rc "workspace stage: own document allowed"            0 guard_ws Write "{\"file_path\":\"$GW/docs/02-prd.md\"}" spec docs/02-prd.md
+check_rc "workspace stage: relative path is inside it"      0 guard_ws Write '{"file_path":"docs/02-prd.md"}' spec docs/02-prd.md
+check_rc "workspace stage: project-root docs/ blocked"      2 guard_ws Write "{\"file_path\":\"$GP/docs/02-prd.md\"}" spec docs/02-prd.md
+check_rc "workspace stage: project code blocked"            2 guard_ws Write "{\"file_path\":\"$GP/src/app.ts\"}" spec docs/
+
+echo "== existing project with its own docs/ and tasks/"
+EP="$WORK/existing"
+mkdir -p "$EP/docs" "$EP/tasks" "$EP/src"
+printf '# Our API docs\n' > "$EP/docs/api.md"
+printf -- '- name: deploy\n' > "$EP/tasks/deploy.yml"
+ei() {
+  clean_env HOME="$WORK/existing-home" "$KIT/install.sh" --target claude --scope project \
+    --project "$EP" --scripts-dir tools/agent-kit "$@"
+}
+check_fails "init refuses a root workspace holding the project's own docs/" ei
+check "the project's docs stay as they were"     test "$(cat "$EP/docs/api.md")" = "# Our API docs"
+check "no config is written when init refuses"   test ! -e "$EP/agent-kit.toml"
+check "install with a separate workspace"        ei --workspace specs/checkout
+check "config records the workspace"             grep -qx 'workspace = "specs/checkout"' "$EP/agent-kit.toml"
+check "brief is in the workspace"                test -f "$EP/specs/checkout/brief/requirements.md"
+check "nothing is added at the root"             test ! -e "$EP/brief" -a ! -e "$EP/.workflow"
+check "wrappers are in the chosen folder"        test -x "$EP/tools/agent-kit/prepare.sh"
+check "no scripts/ folder is created"            test ! -e "$EP/scripts"
+check "gitignore covers logs in any workspace"   grep -qxF '**/.workflow/logs/' "$EP/.gitignore"
+check "the gate rule is limited to agent-kit tasks" grep -q "Other work follows the normal project rules" "$EP/AGENTS.md"
+
+EK_LOG="$WORK/existing-claude.log"
+mkdir -p "$WORK/existing-state"
+ek() {
+  (cd "$EP/src" && clean_env HOME="$WORK/existing-home" PATH="$FB:$PATH" FAKE_CLAUDE_LOG="$EK_LOG" \
+    FAKE_STATE_DIR="$WORK/existing-state" "$@")
+}
+printf '# Brief\nAdd a checkout page to the shop.\n' > "$EP/specs/checkout/brief/requirements.md"
+check "prepare runs from a subfolder through a nested wrapper" ek env FAKE_EXPECT_SKILL=discover \
+  FAKE_EXPECT_TEXT="The project's code and other docs are in $EP." ../tools/agent-kit/prepare.sh
+check "spec docs are written in the workspace"   test -s "$EP/specs/checkout/docs/05-technical-spec.md"
+check "tasks are written in the workspace"       test -s "$EP/specs/checkout/tasks/001-setup/task.md"
+check "the project's docs/ and tasks/ are untouched" test "$(ls "$EP/docs")" = api.md -a "$(ls "$EP/tasks")" = deploy.yml
+check "Claude runs in the workspace"             sh -c "! grep -v 'cwd=$EP/specs/checkout\$' '$EK_LOG'"
+check "Claude may read the project root"         sh -c "! grep -v 'adddir=$EP ' '$EK_LOG'"
+check "stage writes are relative to the workspace" grep -q 'skill=design-ux agent= stage=spec allow=docs/03-ux-design.md' "$EK_LOG"
+
+check "a second workspace (flag after the command)" ek ../.agent-kit/bin/agent-kit init --dir .. -w specs/search
+check "the config default stays"                grep -qx 'workspace = "specs/checkout"' "$EP/agent-kit.toml"
+check "the second workspace has a brief template" grep -q agent-kit:brief-template "$EP/specs/search/brief/requirements.md"
+check_fails "the second workspace refuses its template brief" ek ../tools/agent-kit/prepare.sh --workspace specs/search
+check_fails "a missing workspace is an error, not created" ek ../tools/agent-kit/gate.sh -w specs/nope
+check "a missing workspace is not created"       test ! -e "$EP/specs/nope"
+mkdir -p "$WORK/outside"
+ln -s "$WORK/outside" "$EP/specs/link"
+for bad in ../outside /tmp specs/../../x .agent-kit/work .git 'a b' specs/link; do
+  check_fails "invalid workspace rejected: $bad" ek ../.agent-kit/bin/agent-kit -w "$bad" gate
+done
+if command -v expect >/dev/null 2>&1; then
+  check "approve one workspace"                  approve_in_terminal "$EP" tools/agent-kit/approve.sh
+  check "its approval is in its own .workflow"   test -s "$EP/specs/checkout/.workflow/approvals/spec-approved.json"
+  check "its gate passes"                        ek ../tools/agent-kit/gate.sh
+  check_fails "another workspace keeps its own gate" ek ../tools/agent-kit/gate.sh -w specs/search
+  printf 'More API notes.\n' >> "$EP/docs/api.md"
+  check "editing the project's own docs keeps the approval" ek ../tools/agent-kit/gate.sh
+else
+  echo "  skip  approve a workspace in a terminal (needs 'expect')"
+fi
+
+echo "== one global install, many projects"
+GH="$WORK/global-home"
+GAK="$GH/.local/bin/agent-kit"
+gk() { clean_env HOME="$GH" AGENT_KIT_BIN_DIR="$GH/.local/bin" "$KIT/install.sh" --target both --scope global "$@"; }
+mkdir -p "$WORK/global-state" "$WORK/new-app" "$WORK/old-app/docs" "$WORK/old-app/src"
+printf '# Old docs\n' > "$WORK/old-app/docs/readme.md"
+gp() {
+  local dir="$1"
+  shift
+  (cd "$dir" && clean_env HOME="$GH" PATH="$FB:$PATH" FAKE_CLAUDE_LOG="$WORK/global-claude.log" \
+    FAKE_STATE_DIR="$WORK/global-state" "$@")
+}
+check "global install"                              gk
+check "skills reach every project"                  test -L "$GH/.claude/skills/fix-bug" -a -L "$GH/.agents/skills/fix-bug"
+check "new project: init with the global command"   gp "$WORK/new-app" "$GAK" init
+printf '# Brief\nA small notes app.\n' > "$WORK/new-app/brief/requirements.md"
+check "new project: prepare with the global command" gp "$WORK/new-app" "$GAK" prepare
+check "new project: specs at the project root"      test -s "$WORK/new-app/docs/06-validation.md"
+check_fails "existing project: plain init refuses its own docs/" gp "$WORK/old-app" "$GAK" init
+check "existing project: init a feature workspace"  gp "$WORK/old-app" "$GAK" -w specs/notes init
+printf '# Brief\nAdd notes to the app.\n' > "$WORK/old-app/specs/notes/brief/requirements.md"
+check "existing project: prepare from a subfolder"  gp "$WORK/old-app/src" "$GAK" prepare
+check "existing project: specs in the workspace"    test -s "$WORK/old-app/specs/notes/docs/06-validation.md"
+check "existing project: own docs untouched"        test "$(ls "$WORK/old-app/docs")" = readme.md
+check "no kit copy, wrappers or editor settings in projects" \
+  test ! -e "$WORK/new-app/.agent-kit" -a ! -e "$WORK/new-app/.claude" -a ! -e "$WORK/new-app/scripts" \
+    -a ! -e "$WORK/old-app/.agent-kit" -a ! -e "$WORK/old-app/.claude" -a ! -e "$WORK/old-app/scripts"
+check "every global run had the guard settings"     sh -c "! grep -q 'settings=0' '$WORK/global-claude.log'"
+check_fails "--workspace is refused for a global install" gk --workspace specs

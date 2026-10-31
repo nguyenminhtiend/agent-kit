@@ -17,7 +17,13 @@ Main idea:
 > are written but not used by the runner yet. Where each file's ideas come from:
 > [CREDITS.md](CREDITS.md).
 
+Works in new and existing projects, small or big, solo or team. See
+[USE-CASES.md](USE-CASES.md) for example folders, what to run in each case, and
+example prompts.
+
 ## Pipeline
+
+All paths below are inside the **workspace** (see [Workspaces](#workspaces)).
 
 ```
 brief/requirements.md
@@ -33,9 +39,9 @@ brief/requirements.md
                    approve: a person types APPROVE in a terminal
 ```
 
-The gate binds everything to content hashes. If `brief/`, `docs/` or `tasks/`
-change after review, readiness or approval, the gate fails until you run that
-step again.
+The gate binds everything to content hashes. If the workspace's `brief/`, `docs/`
+or `tasks/` change after review, readiness or approval, the gate fails until you
+run that step again. Files outside the workspace never affect the gate.
 
 The baseline must use regular files and directories: symlinks, including dangling
 links and directory aliases, are rejected. Edits during a review invalidate that
@@ -49,17 +55,23 @@ Needs: `claude`, `jq`, `yq` (mikefarah v4), and `git` later on. Check with `agen
 The automated pipeline uses Claude for every install target, including `codex`.
 The target selects the editor integrations; it does not select the pipeline engine.
 
-```bash
-# Global: symlinks into ~/.claude, ~/.agents/skills, ~/.codex/agents and ~/.local/bin
-./install.sh --target both --scope global          # or --target claude / codex
-cd ~/my-project && agent-kit init
+Main way: install once, globally, and use it in every project. Each project then
+only needs `agent-kit init` (it adds `agent-kit.toml`, `AGENTS.md`, `CLAUDE.md` and
+the workspace). Small fixes with a build skill need no init at all.
 
-# Project: copies everything into the project, so you can commit it
+```bash
+# Global (once): symlinks into ~/.claude, ~/.agents/skills, ~/.codex/agents and ~/.local/bin
+./install.sh --target both --scope global          # or --target claude / codex
+cd ~/any-project && agent-kit init                 # per project, when you use the pipeline
+
+# Optional: copy the kit into one project instead, so it can be committed there
 ./install.sh --target both --scope project --project ~/my-project
 
 # Options
 ./install.sh ... --dry-run      # only print what would happen
 ./install.sh ... --force        # replace things in the way (backups go to .agent-kit-backup/)
+./install.sh ... --workspace specs        # project: keep brief/docs/tasks in specs/
+./install.sh ... --scripts-dir tools/ak   # project: wrapper scripts there (none = skip)
 ./install.sh --target both --scope global --uninstall   # remove the global links
 ```
 
@@ -68,13 +80,17 @@ cd ~/my-project && agent-kit init
 | Skills             | symlinks (edits here show up right away) | copies in `.claude/skills/`, `.agents/skills/`   |
 | Agents             | symlinks (Codex TOML is generated)       | copies in `.claude/agents/`, `.codex/agents/`    |
 | Guard hook         | not added; the runner passes it per call | added to `.claude/settings.json`, `.codex/hooks.json` |
-| Runner             | `agent-kit` command in `~/.local/bin`    | `.agent-kit/` + `scripts/*.sh` wrappers          |
+| Runner             | `agent-kit` command in `~/.local/bin`    | `.agent-kit/` + wrappers (`--scripts-dir`, default `scripts/`) |
 | Your settings files| never changed                            | only the project's, guard entry added            |
 
 Notes:
 
-- Codex agents are TOML. The installer builds them from `agents/*.md`. After you
-  edit an agent, run the installer again.
+- Global links point back to this folder: `git pull` or edits here reach every
+  project at once. Run the installer again after you add a skill or agent, or edit
+  an agent (Codex agents are TOML built from `agents/*.md`).
+- A global install changes no settings file, so the guard hook runs only inside
+  runner stages. To also guard your normal sessions, see "Optional: guard in normal
+  sessions" in [USE-CASES.md](USE-CASES.md).
 - Codex project hooks only run after you trust them: open Codex in the project and run `/hooks`.
 - The runner carries its own skills and reviewer instructions (in `.agent-kit/`
   for project installs). It supplies them explicitly to Claude, so Codex-only
@@ -95,11 +111,30 @@ agent-kit review             # B only
 agent-kit plan               # C only
 agent-kit gate               # D: exit 0 only when READY and approved
 agent-kit approve            # D: a person approves the current baseline
+agent-kit -w specs/search prepare   # any command, in another workspace
 ```
 
-Settings per project are in `agent-kit.toml` (models, max review rounds, turn and
-budget limits, reviewer list, blocking severities, and the `[verify]` commands for
-your stack).
+Settings per project are in `agent-kit.toml` (workspace, models, max review
+rounds, turn and budget limits, reviewer list, blocking severities, and the
+`[verify]` commands for your stack).
+
+## Workspaces
+
+A workspace is the folder that holds one piece of work: `brief/`, `docs/`,
+`tasks/` and `.workflow/` (review results, readiness, approval, logs). The runner
+and Claude work inside it; Claude may still read the rest of the project.
+
+- New project: the default `workspace = "."` (the project root) is fine.
+- Existing project: use a new folder, e.g. `workspace = "specs"`. `init` refuses
+  to use a folder whose `docs/` or `tasks/` already hold your own files, because
+  the gate hashes those folders and `plan` archives old tasks.
+- Many features or many people: one workspace per feature, e.g.
+  `agent-kit -w specs/checkout init`, then `agent-kit -w specs/checkout prepare`.
+  Each one has its own review, gate and approval, so they never block each other.
+
+Order: `--workspace` (or `-w`, anywhere on the line; also `AGENT_KIT_WORKSPACE`),
+then `[paths] workspace` in `agent-kit.toml`, then the project root. It must be a
+relative folder inside the project.
 
 Invalid TOML or invalid setting types stop the command before any stage runs.
 Review cycles and turn limits must be positive integers; budgets must be
@@ -121,14 +156,19 @@ agent-kit/
 ├── agents/<name>.md           # reviewer agents (Claude format; Codex TOML is generated)
 ├── templates/project/         # agent-kit.toml, AGENTS.md, CLAUDE.md, brief template
 ├── tests/                     # smoke.sh, regressions.sh and fake-claude (no API calls)
+├── USE-CASES.md               # example folders, what to run, example prompts
 └── CREDITS.md                 # sources of each skill, agent and rule; license notices
 ```
 
 ## Where to put content
 
-Edit the method sections. Keep the **Reads / Writes** sections as they are: the
-runner and the other stages depend on those file names. Keep the text short:
-agents load every word. Record any new source in `CREDITS.md`.
+Edit the method sections. Skills and agents name documents by role ("the PRD",
+"the technical spec"), never by path: the runner sends a role-to-path list with
+every call, built from the names in `lib/common.sh` (change file names only there).
+Keep the roles in **Reads / Writes** as they are; other stages depend on them.
+Build skills and `code-reviewer` work in any project and use agent-kit files only
+when they exist. Keep the text short: agents load every word. Record any new
+source in `CREDITS.md`. `tests/smoke.sh` fails if a skill or agent names a workspace path.
 
 | File                               | What goes there                                         |
 |------------------------------------|---------------------------------------------------------|
@@ -159,11 +199,13 @@ the two settings match.
 - Reviewer agents only get `Read, Grep, Glob`.
 - Each spec stage may write only its own document. `guard.sh` blocks other writes
   while a runner stage is active.
-- Agents may never write `.workflow/approvals/` or `.workflow/state/`, or run
-  `agent-kit approve`. The guard blocks this in every session where it is installed.
+- Agents may never write any workspace's `.workflow/approvals/` or `.workflow/state/`,
+  or run `agent-kit approve`. The guard blocks this in every session where it is installed.
+- During a runner stage, writes outside the workspace are blocked.
 - `approve` needs a real terminal and refuses to run inside Claude Code or Codex.
 - Workflow and engineering rules are managed together, so an existing `AGENTS.md`
   receives the gate and human-approval instructions while keeping its own content.
+  The gate rule covers only a workspace's tasks; other work in the project is not blocked.
 - These are safety nets, not walls. The gate checks the results again with hashes.
 
 ## Tests

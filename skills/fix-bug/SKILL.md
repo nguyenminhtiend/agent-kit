@@ -6,7 +6,7 @@ disable-model-invocation: true
 
 ## When to use
 
-- A failing test or build, behavior the spec forbids, or a bug report.
+- A failing test or build, behavior the requirements or docs forbid, or a bug report.
 - Not for correct-but-unwanted behavior (new task) or slow but correct output (`optimize`).
 
 ## Method
@@ -18,7 +18,7 @@ disable-model-invocation: true
 5. Form 3–5 ranked hypotheses, each with a prediction ("if X, changing Y removes the bug"). Test one change at a time. Tag temporary logs `[DEBUG-<id>]`.
 6. Turn the shrunk repro into a regression test on the real bug path; see it fail with the symptom. Fix where the bad value starts. See it pass; rerun the original loop. If no test can reach the path, say so in the report.
 7. After a third failed fix, or each fix surfacing a new problem elsewhere, stop: the design is likely wrong. Report and ask for a decision.
-8. Run the regression test plus the existing checks covering the touched code. Commands: `[verify]` in `agent-kit.toml`; fill empty ones from AGENTS.md, README, build scripts or CI. An empty command never passes.
+8. Run the regression test plus the existing checks covering the touched code. Commands: `[verify]` in `agent-kit.toml` if the project has one; fill missing ones from AGENTS.md, CLAUDE.md, README, build scripts or CI. An empty or unknown command never passes.
 9. Remove `[DEBUG-` logs and throwaway files. Report the symptom, root cause, fix, regression test, ruled-out ideas, each check with command source and result, and checks not run with why. Don't claim full verification when checks didn't run.
 
 ## Rules

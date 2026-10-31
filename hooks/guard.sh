@@ -5,11 +5,12 @@
 # understand this.
 #
 # Always:
-#   - block edits to runner-owned files in .workflow/approvals/ and .workflow/state/
+#   - block edits to runner-owned files in any workspace's .workflow/approvals/
+#     and .workflow/state/
 #   - block shell commands that touch those folders or run 'agent-kit approve'
-# During a runner stage (the runner sets AGENT_KIT_STAGE):
+# During a runner stage (the runner sets AGENT_KIT_STAGE and AGENT_KIT_WORKSPACE_DIR):
 #   - allow edits only under AGENT_KIT_WRITE_ALLOW
-#     (paths relative to the project, separated by ":", e.g. "docs/07-plan.md:tasks/")
+#     (paths relative to the workspace, separated by ":", e.g. "docs/07-plan.md:tasks/")
 #
 # This is a safety net, not a wall. The runner and the gate check results too.
 set -uo pipefail
@@ -31,7 +32,7 @@ field() { printf '%s' "$input" | jq -r "$1" 2>/dev/null; }
 tool="$(field '.tool_name // ""')"
 cwd="$(field '.cwd // ""')"
 [ -n "$cwd" ] || cwd="$(pwd)"
-root="${AGENT_KIT_PROJECT_DIR:-${CLAUDE_PROJECT_DIR:-$cwd}}"
+root="${AGENT_KIT_WORKSPACE_DIR:-${AGENT_KIT_PROJECT_DIR:-${CLAUDE_PROJECT_DIR:-$cwd}}}"
 root="$(cd -P "$root" 2>/dev/null && pwd)" || root="$cwd"
 
 # Resolve every path component, including the final file and relative or
@@ -52,7 +53,7 @@ canon() {
     candidate="${resolved%/}/$part"
     if [ "$check" = check ]; then
       case "$candidate" in
-        "$root/.workflow/state"|"$root/.workflow/state/"*|"$root/.workflow/approvals"|"$root/.workflow/approvals/"*|\
+        */.workflow/state|*/.workflow/state/*|*/.workflow/approvals|*/.workflow/approvals/*|\
         "$state_root"|"$state_root/"*|"$approval_root"|"$approval_root/"*) return 1 ;;
       esac
     fi
@@ -124,14 +125,14 @@ while IFS= read -r p; do
   r="$(relpath "$p")" || block "cannot safely resolve $p, or it targets runner-owned state or approvals"
 
   case "$r" in
-    .workflow/approvals/*|.workflow/state/*)
+    .workflow/approvals/*|.workflow/state/*|*/.workflow/approvals/*|*/.workflow/state/*)
       block "$r belongs to the agent-kit runner. Agents may not change it." ;;
   esac
 
   if [ "$in_stage" -eq 1 ]; then
     case "$r" in
       /*|..|../*|*/../*|*/..)
-        block "stage $AGENT_KIT_STAGE may not write outside the project: $p" ;;
+        block "stage $AGENT_KIT_STAGE may not write outside the workspace: $p" ;;
     esac
     allowed=0
     while IFS= read -r a; do

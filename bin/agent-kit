@@ -25,10 +25,16 @@ done
 
 usage() {
   cat <<'EOF'
-Usage: agent-kit <command> [options]
+Usage: agent-kit [--workspace DIR] <command> [options]
+
+  --workspace DIR, -w DIR
+                         Folder for brief/, docs/, tasks/ and .workflow/, relative
+                         to the project root. Default: [paths] workspace in
+                         agent-kit.toml, else the project root. Use one per feature.
 
 Setup
-  init [--dir DIR]       Add agent-kit.toml, brief/, AGENTS.md, CLAUDE.md and folders
+  init [--dir DIR]       Add agent-kit.toml, AGENTS.md, CLAUDE.md, and the workspace
+                         with its brief template and folders
   doctor                 Check that the needed tools are installed
 
 Pipeline (run inside a project)
@@ -47,6 +53,17 @@ Spec stages: discover, define-product, design-ux, design-architecture,
              design-technical, validate-feasibility
 EOF
 }
+
+# --workspace may appear anywhere, so the scripts/*.sh wrappers accept it too.
+args=()
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -w|--workspace) [ $# -ge 2 ] || die "--workspace needs a folder"; export AGENT_KIT_WORKSPACE="$2"; shift 2 ;;
+    --workspace=*)  export AGENT_KIT_WORKSPACE="${1#*=}"; shift ;;
+    *)              args+=("$1"); shift ;;
+  esac
+done
+set -- ${args[@]+"${args[@]}"}
 
 cmd="${1:-help}"
 [ $# -gt 0 ] && shift

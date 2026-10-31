@@ -1,17 +1,19 @@
 ---
 name: design-ux
-description: Spec stage 3. Design flows, screens and states (docs/03-ux-design.md) from the PRD.
+description: Spec stage 3. Design flows, screens and states (the UX design) from the PRD.
 disable-model-invocation: true
 ---
 
 ## Reads
 
-- `docs/01-requirements.md`
-- `docs/02-prd.md`
+Documents are named by role. Paths: from the request; else find the project's matching files.
+
+- The requirements
+- The PRD
 
 ## Writes
 
-- `docs/03-ux-design.md` only
+- The UX design only
 
 ## Required sections
 
@@ -25,7 +27,7 @@ disable-model-invocation: true
 
 ## Method
 
-1. List docs/02's journeys, FRs, edge cases and NFRs. Take users, devices and platform from docs/01–02. Platform not stated: write a provisional direction as an assumption; if it changes scope, deployment or contracts (web vs native vs CLI), also add it to an `Open decisions` subsection (ID, options, recommendation). No GUI (CLI, API, agent tool): map journeys to commands or calls and mark screen-only parts n/a with a reason. Never invent a GUI.
+1. List the PRD's journeys, FRs, edge cases and NFRs. Take users, devices and platform from the requirements and PRD. Platform not stated: write a provisional direction as an assumption; if it changes scope, deployment or contracts (web vs native vs CLI), also add it to an `Open decisions` subsection (ID, options, recommendation). No GUI (CLI, API, agent tool): map journeys to commands or calls and mark screen-only parts n/a with a reason. Never invent a GUI. Existing UI: reuse its patterns, components and copy style; mark each screen new or changed.
    Rerun: keep screen IDs; new ones get the next number; removed ones are `retired`.
 2. Direction, 3–5 lines: main job, who and how often, what they see first, tone, target screen sizes. The first screen is the task, not a marketing page.
 3. Flows: one per journey, same name. Steps like "On S-02 user does X, sees Y, goes to S-03", tagged with FRs. Mark start, goal, error and no-data branches.
