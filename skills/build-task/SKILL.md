@@ -12,7 +12,7 @@ disable-model-invocation: true
 ## Method
 
 1. Read the whole task, then only what it points to: requirements and acceptance criteria, contracts (API spec, schema, types), decision records, designs. Agent-kit task: its PRD criteria, technical-spec contracts, ADRs and UX screens. Work from files, not memory. No acceptance criteria: write pass/fail ones from the request and list them as assumptions; ask first if a wrong guess would change a contract or what users see.
-2. Checks (test, lint, typecheck, build): `[verify]` in `agent-kit.toml` if the project has one; fill missing ones from AGENTS.md, CLAUDE.md, README, build scripts or CI and note the source. Find how to run one test file. An empty or unknown command never passes. No test setup: ask before adding one.
+2. Checks (test, lint, typecheck, build): find the commands in AGENTS.md, CLAUDE.md, README, build scripts or CI and note the source. Find how to run one test file. An empty or unknown command never passes. No test setup: ask before adding one.
 3. Kind: an agent-kit task states `Kind` in its Goal; otherwise a question to answer or something to make ready (account, key, scaffold) is spike/setup. Spike/setup: see below and skip steps 5–6.
 4. Run the full test suite first; if it fails, stop and report.
 5. Test list: each acceptance criterion → behaviors tested at a public interface. Name the mistake each test catches; if none, it's too weak. Criteria whose approved check is manual or config wait for step 8, not forced into tests.

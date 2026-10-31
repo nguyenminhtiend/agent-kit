@@ -24,11 +24,3 @@ max_budget_usd = 0
 agents = ["product-reviewer", "architecture-reviewer", "qa-reviewer"]
 # Findings with these severities make 'agent-kit review' exit 2 (run 'agent-kit repair').
 block_on = ["critical", "major"]
-
-[verify]
-# Commands for this project's stack. Build skills run them; empty = found from
-# AGENTS.md, README, build scripts or CI.
-test = ""
-lint = ""
-typecheck = ""
-build = ""

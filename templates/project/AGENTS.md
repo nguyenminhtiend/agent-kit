@@ -8,7 +8,7 @@ TODO: one or two lines on what this project is.
 
 ## Commands
 
-TODO: how to install, run, test and lint. Keep these the same as [verify] in agent-kit.toml.
+TODO: how to install, run, test, lint, typecheck and build. Agents find the commands here.
 
 <!-- agent-kit:rules:start -->
 <!-- agent-kit:rules:end -->

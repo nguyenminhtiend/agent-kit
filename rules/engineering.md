@@ -28,6 +28,6 @@ Prefer care over speed; use judgment on trivial tasks.
 
 - Turn the task into a checkable goal ("fix the bug" = a test that shows it, then passes). Multi-step work: plan `1. step -> verify: check`.
 - No claim without fresh proof that fits it. Code: run the full proving command now, read output and exit code, then claim. Spec docs: cite path, ID or quote. Without a shell tool, claim no command results.
-- Commands come from `[verify]` in `agent-kit.toml` when present; fill missing ones from AGENTS.md, README, build scripts or CI and say where from. An empty command never passes. Report checks not run, with why.
+- Find commands in AGENTS.md, README, build scripts or CI and say where from. An empty command never passes. Report checks not run, with why.
 - Not proof: an old run, "should work", lint instead of build, another agent's "success". Read the diff yourself.
 - On failure, report the real state with output. Don't round up.

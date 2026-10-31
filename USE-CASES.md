@@ -244,12 +244,6 @@ max_budget_usd = 5
 [review]
 agents = ["product-reviewer", "architecture-reviewer", "qa-reviewer"]
 block_on = ["critical", "major"]
-
-[verify]
-test = "npm test"
-lint = "npm run lint"
-typecheck = "npm run typecheck"
-build = "npm run build"
 ```
 
 **Team flow:**
@@ -401,8 +395,8 @@ platform/                         # monorepo
 └── docs/                         # company docs: agent-kit does not touch them
 ```
 
-One `agent-kit.toml` per service keeps each team's settings and `[verify]`
-commands apart. `agent-kit` finds the nearest `agent-kit.toml` above the folder
+One `agent-kit.toml` per service keeps each team's settings
+apart. `agent-kit` finds the nearest `agent-kit.toml` above the folder
 you run it in. If one team owns the whole repo, one `agent-kit.toml` at the root
 also works, with workspaces like `specs/payments/refunds-v2`.
 
@@ -418,7 +412,6 @@ agent-kit spec discover               # ... through agent-kit readiness
 
 **Settings:** as in case 2, plus:
 
-- `[verify]`: copy the exact commands your CI runs for this service.
 - `max_budget_usd`: set a limit per Claude call so costs stay known.
 - `[models]`: use the model names your company account allows.
 
@@ -437,8 +430,8 @@ agent-kit spec discover               # ... through agent-kit readiness
 
 No pipeline, no init, no workspace, no gate. The global install already made the
 skills available everywhere. Pick one skill and give it the facts. These skills
-read the `[verify]` commands from `agent-kit.toml` if the project has one; if
-not, they find them in your README, build scripts or CI.
+find the test and build commands in your AGENTS.md, CLAUDE.md, README, build
+scripts or CI.
 
 | Problem | Skill | Example prompt |
 |---------|-------|----------------|

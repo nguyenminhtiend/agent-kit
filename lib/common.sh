@@ -145,8 +145,6 @@ load_config() {
               and all(.[]; type == "string" and test("^[a-z0-9][a-z0-9_-]*$")) else true end)
          and (if has("block_on") then .block_on | type == "array" and length > 0
               and all(.[]; . == "critical" or . == "major" or . == "minor") else true end) else true end)
-    and (if has("verify") then .verify | type == "object"
-         and all(to_entries[] | select(.key == "test" or .key == "lint" or .key == "typecheck" or .key == "build"); .value | type == "string") else true end)
   ' >/dev/null 2>&1 || {
     fail "$AK_CONFIG_FILE has invalid settings (check section types, workspace, positive turn limit, nonnegative budget, models and review lists)"
     return 1

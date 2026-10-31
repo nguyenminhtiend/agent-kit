@@ -17,7 +17,7 @@ disable-model-invocation: true
    - Not valid: decline with evidence (file:line, passing test, spec quote): it would break working behavior, a contract or a decision record; it's handled one level up; or nothing uses the "missing" support (grep first).
    - Needs a person: the fix changes a contract, decision record, task scope or product. Leave the code; write the question.
    No polite agreement or "great catch": say what changes or why not.
-3. Checks: `[verify]` in `agent-kit.toml` if the project has one; fill missing ones from AGENTS.md, CLAUDE.md, README, build scripts or CI and note the source. An empty or unknown command never passes. Order: critical, major, minor; quick fixes first within each.
+3. Checks: find the commands in AGENTS.md, CLAUDE.md, README, build scripts or CI and note the source. An empty or unknown command never passes. Order: critical, major, minor; quick fixes first within each.
 4. One finding at a time:
    - Wrong behavior: write a test that fails on the problem, see it fail, then fix.
    - Missing test only: it passes on correct code, so don't force RED. Write it, see it pass, and where useful prove it catches a break with a temporary controlled mutation (then undo). Manual-check behavior: do and record that check.

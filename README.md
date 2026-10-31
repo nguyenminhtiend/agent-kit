@@ -197,8 +197,8 @@ echo "Now read docs/ and tasks/, then run: agent-kit approve"
 ```
 
 Settings per project are in `agent-kit.toml` (workspace, models, turn and budget
-limits, reviewer list, blocking severities, and the `[verify]` commands for your
-stack).
+limits, reviewer list and blocking severities). Put your test, lint and build
+commands in `AGENTS.md`; skills look for them there.
 
 ## Workspaces
 
