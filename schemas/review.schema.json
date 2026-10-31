@@ -1,0 +1,30 @@
+{
+  "title": "agent-kit review result",
+  "description": "What each reviewer agent returns. The runner checks the shape and blocks on the severities listed in agent-kit.toml [review].block_on.",
+  "type": "object",
+  "required": ["status", "findings"],
+  "additionalProperties": false,
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": ["PASS", "NEEDS_REVISION"],
+      "description": "PASS only when there are no critical or major findings."
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["severity", "document", "issue", "recommendation"],
+        "additionalProperties": false,
+        "properties": {
+          "severity": { "type": "string", "enum": ["critical", "major", "minor"] },
+          "document": { "type": "string", "description": "Path of the document, e.g. docs/05-technical-spec.md" },
+          "section": { "type": "string" },
+          "issue": { "type": "string" },
+          "evidence": { "type": "string", "description": "Quote or pointer that shows the problem." },
+          "recommendation": { "type": "string" }
+        }
+      }
+    }
+  }
+}

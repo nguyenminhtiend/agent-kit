@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+# agent-kit: runs the spec pipeline for a project.
+#   brief -> specs -> independent review -> task plan -> readiness gate -> human approval
+# Bash owns the order, retries and state. Claude does the thinking inside each stage.
+set -euo pipefail
+
+# Find the kit home (the folder with bin/, lib/, hooks/ ...), even when this
+# file is reached through a symlink such as ~/.local/bin/agent-kit.
+resolve_dir() {
+  local p="$1" dir
+  while [ -L "$p" ]; do
+    dir="$(cd -P "$(dirname "$p")" && pwd)"
+    p="$(readlink "$p")"
+    case "$p" in /*) ;; *) p="$dir/$p" ;; esac
+  done
+  cd -P "$(dirname "$p")" && pwd
+}
+AGENT_KIT_HOME="$(cd "$(resolve_dir "${BASH_SOURCE[0]}")/.." && pwd)"
+export AGENT_KIT_HOME
+
+for f in common engine init spec review plan gate prepare doctor; do
+  # shellcheck source=/dev/null
+  source "$AGENT_KIT_HOME/lib/$f.sh"
+done
+
+usage() {
+  cat <<'EOF'
+Usage: agent-kit <command> [options]
+
+Setup
+  init [--dir DIR]       Add agent-kit.toml, brief/, AGENTS.md, CLAUDE.md and folders
+  doctor                 Check that the needed tools are installed
+
+Pipeline (run inside a project)
+  prepare [--from S]     spec + review + plan, in that order
+  spec [--from S]        Stage A: write docs/01..06 (S = stage to start from)
+  review                 Stage B: read-only reviewers + bounded repair loop
+  plan                   Stage C: tasks/ + docs/07 plan + docs/08 readiness
+  gate                   Stage D: hard checks; exit 0 only when ready AND approved
+  approve                Stage D: a person approves the current spec baseline
+
+Other
+  version                Print the kit version
+  help                   Show this help
+
+Spec stages: discover, define-product, design-ux, design-architecture,
+             design-technical, validate-feasibility
+EOF
+}
+
+cmd="${1:-help}"
+[ $# -gt 0 ] && shift
+
+case "$cmd" in
+  init)            ak_init "$@" ;;
+  doctor)          ak_doctor "$@" ;;
+  prepare)         need_tools claude jq yq; ak_prepare "$@" ;;
+  spec)            need_tools claude jq yq; ak_spec "$@" ;;
+  review)          need_tools claude jq yq; ak_review "$@" ;;
+  plan)            need_tools claude jq yq; ak_plan "$@" ;;
+  gate)            need_tools jq yq; ak_gate "$@" ;;
+  approve)         need_tools jq yq; ak_approve "$@" ;;
+  version)         cat "$AGENT_KIT_HOME/VERSION" ;;
+  help|-h|--help)  usage ;;
+  *)               usage >&2; die "unknown command: $cmd" ;;
+esac

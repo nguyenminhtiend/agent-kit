@@ -1,0 +1,117 @@
+#!/usr/bin/env bash
+# A fake 'claude' for tests. No API calls: it pretends each stage did its job.
+#
+# Env:
+#   FAKE_CLAUDE_LOG        append one line per call (skill, agent, stage, allow, flags)
+#   FAKE_STATE_DIR         folder for call counters (required for reviews)
+#   FAKE_REVIEW_CRITICAL   reviewer name that reports a critical finding in its first call
+#   FAKE_FAIL_SKILL        skill name that fails (is_error: true)
+#   FAKE_REVIEW_BARRIER    reviewers snapshot the PRD, then wait for a release file
+#   FAKE_READINESS_BARRIER assessor snapshots a task, then waits for release
+#   FAKE_READINESS_RESULT  override the structured readiness result
+#   FAKE_EXPECT_SKILL     skill whose prompt must include FAKE_EXPECT_TEXT
+set -euo pipefail
+
+[ "${1:-}" = "-p" ] || { echo "fake-claude: expected -p first" >&2; exit 1; }
+prompt="$2"
+shift 2
+
+agent="" has_settings=0 has_schema=0 tools="" definitions="{}"
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --agent)       agent="$2"; shift 2 ;;
+    --agents)      definitions="$2"; shift 2 ;;
+    --json-schema) has_schema=1; shift 2 ;;
+    --settings)    has_settings=1; shift 2 ;;
+    --tools)       tools="$2"; shift 2 ;;
+    *)             shift ;;
+  esac
+done
+
+skill="${AGENT_KIT_SKILL:-}"
+if [ -n "$skill" ]; then
+  case "$prompt" in *"Follow the agent-kit skill instructions below."*"Stage request:"*) ;; *) exit 1 ;; esac
+  if [ "$skill" = "${FAKE_EXPECT_SKILL:-}" ]; then
+    case "$prompt" in *"${FAKE_EXPECT_TEXT:?FAKE_EXPECT_TEXT is required}"*) ;; *) exit 1 ;; esac
+  fi
+fi
+if [ -n "$agent" ]; then
+  printf '%s' "$definitions" | jq -e --arg a "$agent" '
+    .[$a] | (.description | type == "string") and (.prompt | contains("independent"))
+    and (.tools == ["Read", "Grep", "Glob"])
+  ' >/dev/null || { echo "fake-claude: missing explicit reviewer instructions" >&2; exit 1; }
+fi
+
+if [ -n "${FAKE_CLAUDE_LOG:-}" ]; then
+  printf 'skill=%s agent=%s stage=%s allow=%s settings=%s schema=%s tools=%s\n' \
+    "$skill" "$agent" "${AGENT_KIT_STAGE:-}" "${AGENT_KIT_WRITE_ALLOW:-}" \
+    "$has_settings" "$has_schema" "$tools" >> "$FAKE_CLAUDE_LOG"
+fi
+
+result() {
+  jq -nc --argjson so "${1:-null}" \
+    '{type: "result", subtype: "success", is_error: false, result: "done", total_cost_usd: 0, structured_output: $so}'
+}
+
+if [ -n "$skill" ] && [ "$skill" = "${FAKE_FAIL_SKILL:-}" ]; then
+  jq -nc '{type: "result", subtype: "error_during_execution", is_error: true, result: "fake failure"}'
+  exit 0
+fi
+
+write() {
+  mkdir -p "$(dirname "$1")"
+  printf '# %s\n\nFake content written by fake-claude for %s.\n' "$1" "$skill" > "$1"
+}
+
+snapshot_and_wait() {
+  local barrier="$1" name="$2" path="$3" attempts=0
+  cat "$path" > "$barrier/$name.read"
+  while [ ! -f "$barrier/release" ]; do
+    attempts=$((attempts + 1))
+    [ "$attempts" -lt 200 ] || { echo "fake-claude: barrier timed out" >&2; exit 1; }
+    sleep 0.05
+  done
+}
+
+case "$skill" in
+  discover)             write docs/01-requirements.md ;;
+  define-product)       write docs/02-prd.md ;;
+  design-ux)            write docs/03-ux-design.md ;;
+  design-architecture)  write docs/04-architecture.md ;;
+  design-technical)     write docs/05-technical-spec.md ;;
+  validate-feasibility) write docs/06-validation.md ;;
+  repair-specs)         printf '\n## Revision log\n\n- Fixed the blocking findings.\n' >> docs/05-technical-spec.md ;;
+  plan-tasks)
+    write docs/07-implementation-plan.md
+    write tasks/001-setup/task.md
+    write tasks/002-core/task.md
+    ;;
+  assess-readiness)
+    if [ -n "${FAKE_READINESS_BARRIER:-}" ]; then
+      snapshot_and_wait "$FAKE_READINESS_BARRIER" readiness tasks/001-setup/task.md
+    fi
+    write docs/08-readiness.md
+    readiness='{"status":"READY","critical":0,"major":0,"unresolved_decisions":0,"summary":"Fake ready.","decisions":[]}'
+    result "${FAKE_READINESS_RESULT:-$readiness}"
+    exit 0
+    ;;
+esac
+
+if [ -n "$agent" ]; then
+  if [ -n "${FAKE_REVIEW_BARRIER:-}" ]; then
+    snapshot_and_wait "$FAKE_REVIEW_BARRIER" "$agent" docs/02-prd.md
+  fi
+  counter="${FAKE_STATE_DIR:?FAKE_STATE_DIR is required}/calls-$agent"
+  n=0
+  [ -f "$counter" ] && n="$(cat "$counter")"
+  n=$((n + 1))
+  printf '%s\n' "$n" > "$counter"
+  if [ "$agent" = "${FAKE_REVIEW_CRITICAL:-}" ] && [ "$n" -eq 1 ]; then
+    result '{"status":"NEEDS_REVISION","findings":[{"severity":"critical","document":"docs/05-technical-spec.md","issue":"Auth contract is undefined","recommendation":"Define token claims and checks"}]}'
+  else
+    result '{"status":"PASS","findings":[{"severity":"minor","document":"docs/02-prd.md","issue":"Typo in goals","recommendation":"Fix the typo"}]}'
+  fi
+  exit 0
+fi
+
+result null

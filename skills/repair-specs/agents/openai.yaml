@@ -1,0 +1,4 @@
+# Codex settings for this skill. Mirrors "disable-model-invocation: true" in SKILL.md:
+# Codex will not pick this skill on its own; "$skill-name" still runs it.
+policy:
+  allow_implicit_invocation: false

@@ -1,0 +1,31 @@
+# agent-kit settings for this project.
+# Only the agent-kit runner reads this file. Claude Code and Codex do not.
+
+[workflow]
+# Positive integer: review -> repair rounds before the pipeline stops as BLOCKED.
+max_review_cycles = 3
+
+[models]
+# Claude model for each stage (an alias like "opus" or a full model ID).
+spec = "opus"
+review = "opus"
+plan = "opus"
+
+[limits]
+# Positive integer: most agent turns one stage may take.
+max_turns = 30
+# Nonnegative number: most dollars one stage call may spend. 0 = no limit.
+max_budget_usd = 0
+
+[review]
+# Reviewer agents. They run in parallel after the specs are written.
+agents = ["product-reviewer", "architecture-reviewer", "qa-reviewer"]
+# Findings with these severities block the pipeline and start a repair round.
+block_on = ["critical", "major"]
+
+[verify]
+# Commands for this project's stack. The build stage will use them (not built yet).
+test = ""
+lint = ""
+typecheck = ""
+build = ""
