@@ -130,7 +130,7 @@ pi() { clean_env HOME="$WORK/home2" "$KIT/install.sh" --target both --scope proj
 
 check "project install"                 pi
 check "runner copied"                   test -x "$P/.agent-kit/bin/agent-kit"
-check "wrapper scripts"                 test -x "$P/scripts/prepare.sh" -a -x "$P/scripts/approve.sh"
+check "wrapper scripts"                 test -x "$P/scripts/spec.sh" -a -x "$P/scripts/repair.sh" -a -x "$P/scripts/approve.sh"
 check "claude skills copied"            test -f "$P/.claude/skills/discover/SKILL.md"
 check "claude agents copied"            test -f "$P/.claude/agents/qa-reviewer.md"
 check "codex skills copied"             test -f "$P/.agents/skills/discover/agents/openai.yaml"
@@ -161,22 +161,63 @@ ak() {
     FAKE_REVIEW_CRITICAL=qa-reviewer "$@")
 }
 
-check_fails "prepare refuses the template brief" ak ./scripts/prepare.sh
+# run_steps RUN: every step from brief to readiness, the way a user's own script
+# would chain them. RUN is a function that runs one agent-kit command.
+run_steps() {
+  local run="$1" s rc round=1
+  for s in discover define-product design-ux design-architecture design-technical validate-feasibility; do
+    "$run" spec "$s" || return 1
+  done
+  while :; do
+    rc=0
+    "$run" review || rc=$?
+    [ "$rc" -eq 0 ] && break
+    [ "$rc" -eq 2 ] && [ "$round" -lt 3 ] || return 1
+    "$run" repair || return 1
+    round=$((round + 1))
+  done
+  "$run" plan && "$run" readiness
+}
+
+check_fails "spec refuses the template brief"   ak ./scripts/spec.sh discover
 printf '# Brief\n\nA tiny todo app for a weekend hackathon.\n' > "$P/brief/requirements.md"
-check_fails "a failing stage stops the run"  ak env FAKE_FAIL_SKILL=design-ux ./scripts/prepare.sh
-check "spec resumes with --from"             ak .agent-kit/bin/agent-kit spec --from design-ux
-check_fails "plan refuses before review"     ak ./scripts/plan.sh
-rm -f "$WORK"/fake-state/*
-check "prepare runs end to end"              ak ./scripts/prepare.sh
-check "all spec docs written"                test -s "$P/docs/01-requirements.md" -a -s "$P/docs/06-validation.md"
-check "review needed 2 rounds"               test "$(jq .rounds "$P/.workflow/state/review.json")" -eq 2
-check "round 1 had the blocking finding"     test "$(jq '.blocking | length' "$P/.workflow/reviews/round-1/summary.json")" -eq 1
-check "review passed"                        jq -e '.status == "PASS"' "$P/.workflow/state/review.json"
-check "readiness saved with hash"            jq -e '.status == "READY" and (.spec_hash | length) == 64' "$P/.workflow/state/readiness.json"
-check "tasks written"                        test -s "$P/tasks/001-setup/task.md"
-check "every call had the guard settings"    sh -c "! grep -q 'settings=0' '$LOG'"
-check "spec stages may write one doc only"   grep -q 'skill=design-ux agent= stage=spec allow=docs/03-ux-design.md' "$LOG"
-check "reviewers are read-only"              grep -q 'agent=qa-reviewer stage=review allow= settings=1 schema=1 tools=Read,Grep,Glob' "$LOG"
+check_fails "spec needs a stage name"           ak ./scripts/spec.sh
+check_fails "spec rejects an unknown stage"     ak ./scripts/spec.sh nope
+check_fails "spec rejects more than one stage"  ak ./scripts/spec.sh discover define-product
+check_fails "a stage needs the earlier documents" ak ./scripts/spec.sh design-ux
+check_fails "a failing stage exits non-zero"    ak env FAKE_FAIL_SKILL=discover ./scripts/spec.sh discover
+check "one stage runs"                          ak ./scripts/spec.sh discover
+check "it writes only its own document"         test -s "$P/docs/01-requirements.md" -a ! -e "$P/docs/02-prd.md"
+check_fails "review needs every spec document"  ak ./scripts/review.sh
+check_fails "repair needs a review first"       ak ./scripts/repair.sh
+check_fails "plan needs a review first"         ak ./scripts/plan.sh
+for s in define-product design-ux design-architecture design-technical validate-feasibility; do
+  check "spec $s"                               ak ./scripts/spec.sh "$s"
+done
+check "a stage can run again"                   ak ./scripts/spec.sh design-ux
+check "all spec docs written"                   test -s "$P/docs/01-requirements.md" -a -s "$P/docs/06-validation.md"
+check_rc "review: blocking findings exit 2"   2 ak ./scripts/review.sh
+check "review runs one round only"              test ! -e "$P/.workflow/reviews/round-2"
+check "round 1 had the blocking finding"        test "$(jq '.blocking | length' "$P/.workflow/reviews/round-1/summary.json")" -eq 1
+check "review state asks for a repair"          jq -e '.status == "NEEDS_REPAIR" and .round == 1 and .blocking == 1' "$P/.workflow/state/review.json"
+check_fails "plan refuses a failed review"      ak ./scripts/plan.sh
+check "repair fixes the findings"               ak ./scripts/repair.sh
+check "repair does not review"                  test ! -e "$P/.workflow/reviews/round-2"
+check_fails "repair needs a new review first"   ak ./scripts/repair.sh
+check "review round 2 passes"                   ak ./scripts/review.sh
+check "review passed in round 2"                jq -e '.status == "PASS" and .round == 2 and .summary == ".workflow/reviews/round-2/summary.json"' "$P/.workflow/state/review.json"
+check "round 1 is kept"                         test -s "$P/.workflow/reviews/round-1/summary.json"
+check_fails "repair refuses a passed review"    ak ./scripts/repair.sh
+check_fails "readiness needs a plan first"      ak ./scripts/readiness.sh
+check "plan writes the plan and tasks"          ak ./scripts/plan.sh
+check "tasks written"                           test -s "$P/tasks/001-setup/task.md" -a -s "$P/docs/07-implementation-plan.md"
+check "plan does not assess readiness"          test ! -e "$P/docs/08-readiness.md" -a ! -e "$P/.workflow/state/readiness.json"
+check "readiness says READY"                    ak ./scripts/readiness.sh
+check "readiness saved with hash"               jq -e '.status == "READY" and (.spec_hash | length) == 64' "$P/.workflow/state/readiness.json"
+check "every call had the guard settings"       sh -c "! grep -q 'settings=0' '$LOG'"
+check "spec stages may write one doc only"      grep -q 'skill=design-ux agent= stage=spec allow=docs/03-ux-design.md' "$LOG"
+check "repair may write docs only"              grep -q 'skill=repair-specs agent= stage=repair allow=docs/ ' "$LOG"
+check "reviewers are read-only"                 grep -q 'agent=qa-reviewer stage=review allow= settings=1 schema=1 tools=Read,Grep,Glob' "$LOG"
 check_fails "gate blocks before approval"    ak ./scripts/gate.sh
 check_fails "approve refuses without a terminal" ak env -u CLAUDECODE ./scripts/approve.sh
 check_fails "approve refuses inside an agent" ak env CLAUDECODE=1 ./scripts/approve.sh

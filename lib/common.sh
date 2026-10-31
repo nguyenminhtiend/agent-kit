@@ -53,6 +53,13 @@ fail() { printf '  FAIL  %s\n' "$*" >&2; }
 warn() { printf 'warning: %s\n' "$*" >&2; }
 die()  { printf 'error: %s\n' "$*" >&2; exit 1; }
 
+# Exit code of a step that ran fine but found work to do: blocking review
+# findings, or a NOT_READY verdict. Errors and missing inputs exit 1.
+AK_EXIT_NEEDS_WORK=2
+
+# Print the command to run next, with the same --workspace the user gave.
+next_step() { info "next: agent-kit${AGENT_KIT_WORKSPACE:+ -w $AGENT_KIT_WORKSPACE} $*"; }
+
 now_utc() { date -u +%Y-%m-%dT%H:%M:%SZ; }
 
 need_tools() {
@@ -128,8 +135,6 @@ load_config() {
     type == "object"
     and (if has("paths") then .paths | type == "object"
          and (if has("workspace") then .workspace | nonempty_string else true end) else true end)
-    and (if has("workflow") then .workflow | type == "object"
-         and (if has("max_review_cycles") then .max_review_cycles | positive_integer else true end) else true end)
     and (if has("models") then .models | type == "object"
          and all(to_entries[] | select(.key == "spec" or .key == "review" or .key == "plan"); .value | nonempty_string) else true end)
     and (if has("limits") then .limits | type == "object"
@@ -143,13 +148,13 @@ load_config() {
     and (if has("verify") then .verify | type == "object"
          and all(to_entries[] | select(.key == "test" or .key == "lint" or .key == "typecheck" or .key == "build"); .value | type == "string") else true end)
   ' >/dev/null 2>&1 || {
-    fail "$AK_CONFIG_FILE has invalid settings (check section types, workspace, positive turn/review limits, nonnegative budget, models and review lists)"
+    fail "$AK_CONFIG_FILE has invalid settings (check section types, workspace, positive turn limit, nonnegative budget, models and review lists)"
     return 1
   }
 }
 
 # Read one value from agent-kit.toml, with a default.
-#   cfg .workflow.max_review_cycles 3
+#   cfg .limits.max_turns 30
 cfg() {
   local v
   [ -n "${AK_CONFIG_JSON:-}" ] || load_config || return 1
@@ -226,8 +231,8 @@ check_brief() {
 }
 
 check_spec_docs() {
-  local f
-  for f in $(spec_doc_paths); do
-    [ -s "$f" ] || die "$f is missing. Run 'agent-kit spec' first."
+  local e
+  for e in $AK_SPEC_STAGES; do
+    [ -s "${e#*:}" ] || die "${e#*:} is missing. Run 'agent-kit spec ${e%%:*}' first."
   done
 }

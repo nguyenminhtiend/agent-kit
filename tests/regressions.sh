@@ -75,7 +75,8 @@ rk() {
 }
 printf '# Brief\nBuild a small todo app.\n' > "$RP/brief/requirements.md"
 printf '\nBUNDLED_DISCOVERY_INSTRUCTIONS\n' >> "$RP/.agent-kit/skills/discover/SKILL.md"
-check "codex-only pipeline uses bundled skill and agent instructions" rk env FAKE_EXPECT_SKILL=discover FAKE_EXPECT_TEXT=BUNDLED_DISCOVERY_INSTRUCTIONS .agent-kit/bin/agent-kit prepare
+rk_steps() { rk env FAKE_EXPECT_SKILL=discover FAKE_EXPECT_TEXT=BUNDLED_DISCOVERY_INSTRUCTIONS .agent-kit/bin/agent-kit "$@"; }
+check "codex-only steps use bundled skill and agent instructions" run_steps rk_steps
 
 before_approval_gate() {
   (cd "$RP" && source "$KIT/lib/common.sh" && source "$KIT/lib/gate.sh" && gate_checks before-approval)
@@ -107,25 +108,26 @@ jq '.decisions = [{id:"D-1",question:"Which auth provider?",recommendation:"Choo
 check_fails "gate rejects READY with open decisions and a zero count" before_approval_gate
 check_fails "runner rejects contradictory readiness output" rk env \
   FAKE_READINESS_RESULT='{"status":"READY","critical":0,"major":0,"unresolved_decisions":0,"summary":"Contradictory","decisions":[{"id":"D-1","question":"Which auth provider?","recommendation":"Choose one"}]}' \
-  .agent-kit/bin/agent-kit plan
+  .agent-kit/bin/agent-kit readiness
 check "invalid readiness does not leave a saved verdict" test ! -e "$RP/.workflow/state/readiness.json"
-check "runner preserves a consistent NOT_READY verdict" rk env \
+check_rc "NOT_READY is saved and exits 2" 2 rk env \
   FAKE_READINESS_RESULT='{"status":"NOT_READY","critical":0,"major":0,"unresolved_decisions":1,"summary":"Choose auth first","decisions":[{"id":"D-1","question":"Which auth provider?","recommendation":"Choose one"}]}' \
-  .agent-kit/bin/agent-kit plan
+  .agent-kit/bin/agent-kit readiness
+check "the NOT_READY verdict is kept" jq -e '.status == "NOT_READY"' "$RP/.workflow/state/readiness.json"
 check_fails "open decisions block approval" before_approval_gate
-check "readiness can be reassessed after resolving decisions" rk .agent-kit/bin/agent-kit plan
+check "readiness can be reassessed after resolving decisions" rk .agent-kit/bin/agent-kit readiness
 
 echo "== configuration validation"
 cp "$RP/agent-kit.toml" "$WORK/valid-config.toml"
 calls_before="$(wc -l < "$RK_LOG" | tr -d ' ')"
 printf '[limits\nmax_budget_usd = 2\n' > "$RP/agent-kit.toml"
-check_fails "malformed TOML stops before a stage runs" rk .agent-kit/bin/agent-kit prepare
+check_fails "malformed TOML stops before a stage runs" rk .agent-kit/bin/agent-kit spec discover
 for value in 'max_budget_usd = -1' 'max_budget_usd = "2"' 'max_turns = 0' 'max_turns = 1.5'; do
   printf '[limits]\n%s\n' "$value" > "$RP/agent-kit.toml"
-  check_fails "invalid limit: $value" rk .agent-kit/bin/agent-kit prepare
+  check_fails "invalid limit: $value" rk .agent-kit/bin/agent-kit spec discover
 done
 printf '[review]\nblock_on = ["typo"]\n' > "$RP/agent-kit.toml"
-check_fails "invalid blocking severity stops the pipeline" rk .agent-kit/bin/agent-kit prepare
+check_fails "invalid blocking severity stops the review" rk .agent-kit/bin/agent-kit review
 check "invalid configuration never calls Claude" test "$(wc -l < "$RK_LOG" | tr -d ' ')" = "$calls_before"
 printf '[limits]\nmax_budget_usd = 2.5\n' > "$RP/agent-kit.toml"
 read_settings() {
@@ -163,9 +165,9 @@ check "review rejects edits made after every reviewer read" stage_race FAKE_REVI
 check "interrupted review removes the previous PASS stamp" test ! -e "$RP/.workflow/state/review.json"
 check_fails "planning refuses an unstamped changed baseline" rk .agent-kit/bin/agent-kit plan
 check "a stable rerun can review the changed baseline" rk .agent-kit/bin/agent-kit review
-check "readiness rejects a task edited while it is being assessed" stage_race FAKE_READINESS_BARRIER plan 1 tasks/001-setup/task.md 'changed during readiness assessment'
+check "readiness rejects a task edited while it is being assessed" stage_race FAKE_READINESS_BARRIER readiness 1 tasks/001-setup/task.md 'changed during readiness assessment'
 check "interrupted readiness does not leave a passing verdict" test ! -e "$RP/.workflow/state/readiness.json"
-check "stable inputs can be reassessed after a concurrent edit" rk .agent-kit/bin/agent-kit plan
+check "stable inputs can be reassessed after a concurrent edit" rk .agent-kit/bin/agent-kit readiness
 
 echo "== guard in workspaces"
 GW="$GP/specs/a"
@@ -201,7 +203,7 @@ check "install with a separate workspace"        ei --workspace specs/checkout
 check "config records the workspace"             grep -qx 'workspace = "specs/checkout"' "$EP/agent-kit.toml"
 check "brief is in the workspace"                test -f "$EP/specs/checkout/brief/requirements.md"
 check "nothing is added at the root"             test ! -e "$EP/brief" -a ! -e "$EP/.workflow"
-check "wrappers are in the chosen folder"        test -x "$EP/tools/agent-kit/prepare.sh"
+check "wrappers are in the chosen folder"        test -x "$EP/tools/agent-kit/spec.sh" -a -x "$EP/tools/agent-kit/readiness.sh"
 check "no scripts/ folder is created"            test ! -e "$EP/scripts"
 check "gitignore covers logs in any workspace"   grep -qxF '**/.workflow/logs/' "$EP/.gitignore"
 check "the gate rule is limited to agent-kit tasks" grep -q "Other work follows the normal project rules" "$EP/AGENTS.md"
@@ -213,8 +215,14 @@ ek() {
     FAKE_STATE_DIR="$WORK/existing-state" "$@")
 }
 printf '# Brief\nAdd a checkout page to the shop.\n' > "$EP/specs/checkout/brief/requirements.md"
-check "prepare runs from a subfolder through a nested wrapper" ek env FAKE_EXPECT_SKILL=discover \
-  FAKE_EXPECT_TEXT="The project's code and other docs are in $EP." ../tools/agent-kit/prepare.sh
+# ek_steps CMD ARGS...: one step through the nested wrapper for CMD.
+ek_steps() {
+  local c="$1"
+  shift
+  ek env FAKE_EXPECT_SKILL=discover FAKE_EXPECT_TEXT="The project's code and other docs are in $EP." \
+    "../tools/agent-kit/$c.sh" "$@"
+}
+check "the steps run from a subfolder through nested wrappers" run_steps ek_steps
 check "spec docs are written in the workspace"   test -s "$EP/specs/checkout/docs/05-technical-spec.md"
 check "tasks are written in the workspace"       test -s "$EP/specs/checkout/tasks/001-setup/task.md"
 check "the project's docs/ and tasks/ are untouched" test "$(ls "$EP/docs")" = api.md -a "$(ls "$EP/tasks")" = deploy.yml
@@ -225,7 +233,7 @@ check "stage writes are relative to the workspace" grep -q 'skill=design-ux agen
 check "a second workspace (flag after the command)" ek ../.agent-kit/bin/agent-kit init --dir .. -w specs/search
 check "the config default stays"                grep -qx 'workspace = "specs/checkout"' "$EP/agent-kit.toml"
 check "the second workspace has a brief template" grep -q agent-kit:brief-template "$EP/specs/search/brief/requirements.md"
-check_fails "the second workspace refuses its template brief" ek ../tools/agent-kit/prepare.sh --workspace specs/search
+check_fails "the second workspace refuses its template brief" ek ../tools/agent-kit/spec.sh discover --workspace specs/search
 check_fails "a missing workspace is an error, not created" ek ../tools/agent-kit/gate.sh -w specs/nope
 check "a missing workspace is not created"       test ! -e "$EP/specs/nope"
 mkdir -p "$WORK/outside"
@@ -260,12 +268,14 @@ check "global install"                              gk
 check "skills reach every project"                  test -L "$GH/.claude/skills/fix-bug" -a -L "$GH/.agents/skills/fix-bug"
 check "new project: init with the global command"   gp "$WORK/new-app" "$GAK" init
 printf '# Brief\nA small notes app.\n' > "$WORK/new-app/brief/requirements.md"
-check "new project: prepare with the global command" gp "$WORK/new-app" "$GAK" prepare
+gp_new() { gp "$WORK/new-app" "$GAK" "$@"; }
+check "new project: the steps with the global command" run_steps gp_new
 check "new project: specs at the project root"      test -s "$WORK/new-app/docs/06-validation.md"
 check_fails "existing project: plain init refuses its own docs/" gp "$WORK/old-app" "$GAK" init
 check "existing project: init a feature workspace"  gp "$WORK/old-app" "$GAK" -w specs/notes init
 printf '# Brief\nAdd notes to the app.\n' > "$WORK/old-app/specs/notes/brief/requirements.md"
-check "existing project: prepare from a subfolder"  gp "$WORK/old-app/src" "$GAK" prepare
+gp_old() { gp "$WORK/old-app/src" "$GAK" "$@"; }
+check "existing project: the steps from a subfolder" run_steps gp_old
 check "existing project: specs in the workspace"    test -s "$WORK/old-app/specs/notes/docs/06-validation.md"
 check "existing project: own docs untouched"        test "$(ls "$WORK/old-app/docs")" = readme.md
 check "no kit copy, wrappers or editor settings in projects" \

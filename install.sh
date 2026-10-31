@@ -31,7 +31,7 @@ BIN_DIR="${AGENT_KIT_BIN_DIR:-$HOME/.local/bin}"
 # What the runner needs at run time. Copied to <project>/.agent-kit/.
 RUNTIME_ITEMS="VERSION bin lib hooks schemas rules templates skills agents"
 # Commands that get a wrapper in <project>/scripts/.
-WRAPPER_COMMANDS="prepare review plan gate approve"
+WRAPPER_COMMANDS="spec review repair plan readiness approve gate"
 
 CLAUDE_HOOK_MATCHER="Write|Edit|MultiEdit|NotebookEdit|Bash"
 CLAUDE_HOOK_COMMAND='"$CLAUDE_PROJECT_DIR"/.agent-kit/hooks/guard.sh'

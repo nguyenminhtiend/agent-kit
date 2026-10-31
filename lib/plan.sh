@@ -1,10 +1,15 @@
-# Stage C: break the reviewed specs into small tasks, then assess readiness.
+# Step C: break the reviewed specs into small tasks, then assess readiness.
+#   agent-kit plan        plan-tasks: the plan document and tasks/
+#   agent-kit readiness   assess-readiness: the readiness report and verdict.
+#                         Exit 0 = READY, 2 = NOT_READY, 1 = error.
 
 ak_plan() {
+  [ $# -eq 0 ] || die "unknown option for plan: $1"
   enter_project
   check_spec_docs
   require_review_pass
   archive_old_tasks
+  # A new plan makes the old verdict meaningless.
   rm -f "$AK_READINESS_STATE"
 
   info "plan: plan-tasks -> $AK_PLAN_DOC and tasks/"
@@ -16,12 +21,24 @@ ak_plan() {
     die "plan-tasks failed. See .workflow/logs/"
   [ -s "$AK_PLAN_DOC" ] || die "$AK_PLAN_DOC is missing or empty"
   [ "$(count_tasks)" -gt 0 ] || die "no tasks/*/task.md files were written"
-  ok "$AK_PLAN_DOC and $(count_tasks) task files"
   require_review_pass
+  ok "$AK_PLAN_DOC and $(count_tasks) task files"
+  next_step readiness
+}
 
-  info "plan: assess-readiness -> $AK_READINESS_DOC"
+ak_readiness() {
+  [ $# -eq 0 ] || die "unknown option for readiness: $1"
+  enter_project
+  check_spec_docs
+  require_review_pass
+  [ -s "$AK_PLAN_DOC" ] || die "$AK_PLAN_DOC is missing. Run 'agent-kit plan' first."
+  [ "$(count_tasks)" -gt 0 ] || die "no tasks/*/task.md files. Run 'agent-kit plan' first."
+  rm -f "$AK_READINESS_STATE"
+
+  info "readiness: assess-readiness -> $AK_READINESS_DOC"
   local out base input_hash current_hash summary
-  summary="$(jq -r .last_review "$AK_REVIEW_STATE")/summary.json"
+  summary="$(jq -r .summary "$AK_REVIEW_STATE")"
+  [ -s "$summary" ] || die "review summary not found: $summary. Run 'agent-kit review' again."
   input_hash="$(readiness_input_hash)" || die "cannot hash the readiness inputs"
   out="$(engine_run assess-readiness readiness "$AK_READINESS_DOC" \
     "/assess-readiness Check if the specs, the plan and the task files are ready for implementation. The last spec review passed; its findings are in $summary. Write $AK_READINESS_DOC. Return the verdict in the structured output." \
@@ -33,7 +50,7 @@ ak_plan() {
   [ -s "$AK_READINESS_DOC" ] || die "$AK_READINESS_DOC is missing or empty"
   current_hash="$(readiness_input_hash)" || die "cannot hash the readiness inputs after assessment"
   [ "$input_hash" = "$current_hash" ] ||
-    die "specs or tasks changed during readiness assessment. Run 'agent-kit plan' again on a stable baseline."
+    die "specs or tasks changed during readiness assessment. Run 'agent-kit readiness' again on a stable baseline."
 
   # The runner writes the state file, not Claude. The hash ties the verdict
   # to the exact files that were assessed.
@@ -53,12 +70,19 @@ ak_plan() {
   mv "$AK_READINESS_STATE.tmp" "$AK_READINESS_STATE"
 
   jq -r '"  \(.status): \(.critical) critical, \(.major) major, \(.unresolved_decisions) open decisions"' "$AK_READINESS_STATE" >&2
+  if jq -e '.status == "READY"' "$AK_READINESS_STATE" >/dev/null; then
+    next_step "approve   (a person, in a terminal, after reading docs/ and tasks/)"
+    return 0
+  fi
+  show_open_decisions
+  info "next: answer the open decisions in the brief or docs, then run the steps again from the first changed one"
+  return "$AK_EXIT_NEEDS_WORK"
 }
 
 require_review_pass() {
   [ -f "$AK_REVIEW_STATE" ] || die "no review result yet. Run 'agent-kit review' first."
   jq -e '.status == "PASS"' "$AK_REVIEW_STATE" >/dev/null ||
-    die "the last review did not pass. Run 'agent-kit review'."
+    die "the last review did not pass. Run 'agent-kit repair', then 'agent-kit review'."
   local current_hash
   current_hash="$(spec_hash)" || die "cannot hash the spec baseline"
   [ "$(jq -r .spec_hash "$AK_REVIEW_STATE")" = "$current_hash" ] ||

@@ -7,10 +7,6 @@
 # docs/ or tasks/. One folder per feature: agent-kit --workspace specs/<feature> ...
 workspace = "."
 
-[workflow]
-# Positive integer: review -> repair rounds before the pipeline stops as BLOCKED.
-max_review_cycles = 3
-
 [models]
 # Claude model for each stage (an alias like "opus" or a full model ID).
 spec = "opus"
@@ -18,15 +14,15 @@ review = "opus"
 plan = "opus"
 
 [limits]
-# Positive integer: most agent turns one stage may take.
+# Positive integer: most agent turns one Claude call may take.
 max_turns = 30
-# Nonnegative number: most dollars one stage call may spend. 0 = no limit.
+# Nonnegative number: most dollars one Claude call may spend. 0 = no limit.
 max_budget_usd = 0
 
 [review]
-# Reviewer agents. They run in parallel after the specs are written.
+# Reviewer agents. 'agent-kit review' runs them in parallel.
 agents = ["product-reviewer", "architecture-reviewer", "qa-reviewer"]
-# Findings with these severities block the pipeline and start a repair round.
+# Findings with these severities make 'agent-kit review' exit 2 (run 'agent-kit repair').
 block_on = ["critical", "major"]
 
 [verify]

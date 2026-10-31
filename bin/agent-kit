@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# agent-kit: runs the spec pipeline for a project.
-#   brief -> specs -> independent review -> task plan -> readiness gate -> human approval
-# Bash owns the order, retries and state. Claude does the thinking inside each stage.
+# agent-kit: the spec pipeline for a project, one step per command.
+#   brief -> specs -> independent review -> task plan -> readiness -> human approval -> gate
+# Each command runs one step and checks its inputs. You (or your own script)
+# choose the order and the retries. Claude does the thinking inside a step.
 set -euo pipefail
 
 # Find the kit home (the folder with bin/, lib/, hooks/ ...), even when this
@@ -18,7 +19,7 @@ resolve_dir() {
 AGENT_KIT_HOME="$(cd "$(resolve_dir "${BASH_SOURCE[0]}")/.." && pwd)"
 export AGENT_KIT_HOME
 
-for f in common engine init spec review plan gate prepare doctor; do
+for f in common engine init spec review plan gate doctor; do
   # shellcheck source=/dev/null
   source "$AGENT_KIT_HOME/lib/$f.sh"
 done
@@ -37,20 +38,24 @@ Setup
                          with its brief template and folders
   doctor                 Check that the needed tools are installed
 
-Pipeline (run inside a project)
-  prepare [--from S]     spec + review + plan, in that order
-  spec [--from S]        Stage A: write docs/01..06 (S = stage to start from)
-  review                 Stage B: read-only reviewers + bounded repair loop
-  plan                   Stage C: tasks/ + docs/07 plan + docs/08 readiness
-  gate                   Stage D: hard checks; exit 0 only when ready AND approved
-  approve                Stage D: a person approves the current spec baseline
+Steps (run inside a project, one at a time, in this order)
+  spec STAGE             A. Run one spec stage; it writes one document in docs/
+  review                 B. One review round by read-only reviewers in parallel
+                            exit 2 = blocking findings: run repair, then review again
+  repair                 B. Fix the blocking findings of the last review
+  plan                   C. Write docs/07 plan and tasks/ (needs a passed review)
+  readiness              C. Write docs/08 and the verdict; exit 2 = NOT_READY
+  approve                D. A person approves the current baseline (brief, docs, tasks)
+  gate                   D. Hard checks; exit 0 only when ready AND approved
+
+  Exit codes: 0 = done, 1 = error or missing input, 2 = the step found work to do.
 
 Other
   version                Print the kit version
   help                   Show this help
 
-Spec stages: discover, define-product, design-ux, design-architecture,
-             design-technical, validate-feasibility
+Spec stages, in order: discover, define-product, design-ux, design-architecture,
+                       design-technical, validate-feasibility
 EOF
 }
 
@@ -71,10 +76,11 @@ cmd="${1:-help}"
 case "$cmd" in
   init)            ak_init "$@" ;;
   doctor)          ak_doctor "$@" ;;
-  prepare)         need_tools claude jq yq; ak_prepare "$@" ;;
   spec)            need_tools claude jq yq; ak_spec "$@" ;;
   review)          need_tools claude jq yq; ak_review "$@" ;;
+  repair)          need_tools claude jq yq; ak_repair "$@" ;;
   plan)            need_tools claude jq yq; ak_plan "$@" ;;
+  readiness)       need_tools claude jq yq; ak_readiness "$@" ;;
   gate)            need_tools jq yq; ak_gate "$@" ;;
   approve)         need_tools jq yq; ak_approve "$@" ;;
   version)         cat "$AGENT_KIT_HOME/VERSION" ;;

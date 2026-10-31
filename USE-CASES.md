@@ -38,6 +38,35 @@ It adds `agent-kit.toml`, `AGENTS.md`, `CLAUDE.md` (or adds a block to yours),
 three `.gitignore` lines, and the workspace: `brief/`, `docs/`, `tasks/`,
 `.workflow/`. Commit all of them except what `.gitignore` lists.
 
+## The steps
+
+The pipeline is a list of commands. Each one does one step and stops, so you can
+read its output before you run the next one. Each command prints the next one.
+Input and output of every step: [README: Use](README.md#use-one-step-at-a-time).
+
+```bash
+# A. specs: one command per document
+agent-kit spec discover               # brief            -> docs/01-requirements.md
+agent-kit spec define-product         # + docs/01        -> docs/02-prd.md
+agent-kit spec design-ux              # + docs/02        -> docs/03-ux-design.md
+agent-kit spec design-architecture    # + docs/03        -> docs/04-architecture.md
+agent-kit spec design-technical       # + docs/04        -> docs/05-technical-spec.md
+agent-kit spec validate-feasibility   # + docs/05        -> docs/06-validation.md
+# B. review (exit 2 = blocking findings)
+agent-kit review                      # docs/01-06       -> .workflow/reviews/round-N/summary.json
+agent-kit repair                      # only after exit 2, then review again
+# C. plan
+agent-kit plan                        # docs/01-06       -> docs/07 + tasks/
+agent-kit readiness                   # docs + tasks     -> docs/08 (exit 2 = NOT_READY)
+# D. a person approves; the gate checks
+agent-kit approve                     # in your own terminal, type APPROVE
+agent-kit gate                        # exit 0 = coding may start
+```
+
+For a workspace that is not the default, add `-w <workspace>` to every command.
+Once you know the steps, you can chain them in your own script: see
+[README: Automate with your own script](README.md#automate-with-your-own-script).
+
 ## Pick your case
 
 | # | Case | Workspace | What to use |
@@ -56,11 +85,11 @@ skip the pipeline and use one skill (case 5).
 
 | Part | What it does | Who starts it |
 |------|--------------|---------------|
-| `agent-kit prepare` | Writes specs, reviews them, makes the task plan | you |
-| Spec skills: `discover`, `define-product`, `design-ux`, `design-architecture`, `design-technical`, `validate-feasibility` | Write `docs/01` to `docs/06` | the runner |
-| Reviewer agents: `product-reviewer`, `architecture-reviewer`, `qa-reviewer` | Check the specs, read only | the runner |
-| `repair-specs` | Fixes blocking review findings | the runner |
-| `plan-tasks`, `assess-readiness` | Write `docs/07`, `tasks/`, `docs/08` | the runner |
+| `agent-kit spec <stage>`: spec skills `discover`, `define-product`, `design-ux`, `design-architecture`, `design-technical`, `validate-feasibility` | Each stage writes one of `docs/01` to `docs/06` | you, one command per stage |
+| `agent-kit review`: reviewer agents `product-reviewer`, `architecture-reviewer`, `qa-reviewer` | One review round of the specs, read only | you |
+| `agent-kit repair`: skill `repair-specs` | Fixes the blocking findings of the last review | you, after `review` exits 2 |
+| `agent-kit plan`: skill `plan-tasks` | Writes `docs/07` and `tasks/` | you |
+| `agent-kit readiness`: skill `assess-readiness` | Writes `docs/08` and the READY / NOT_READY verdict | you |
 | `agent-kit approve` | You accept the specs and tasks | you, in a terminal |
 | `agent-kit gate` | Says if coding may start (exit 0 = yes) | you or CI |
 | Build skills: `build-task`, `fix-review`, `fix-bug`, `refactor`, `optimize` | Write and fix code | you, in Claude Code or Codex |
@@ -75,7 +104,7 @@ Claude Code, `$build-task ...` in Codex.
 
 A weekend app, a CLI tool, a contest entry.
 
-**Folders after `init` and `prepare`:**
+**Folders after `init` and all steps:**
 
 ```
 trip-splitter/
@@ -83,7 +112,7 @@ trip-splitter/
 ├── AGENTS.md              # shared rules (kit block added)
 ├── CLAUDE.md              # imports AGENTS.md
 ├── brief/requirements.md  # you write this
-├── docs/01 … 08           # written by the pipeline
+├── docs/01 … 08           # written by the steps
 ├── tasks/001-setup/task.md
 │   tasks/002-add-expense/task.md …
 └── .workflow/             # review results, readiness, approval, logs
@@ -94,8 +123,12 @@ trip-splitter/
 ```bash
 mkdir trip-splitter && cd trip-splitter && git init
 agent-kit init
-# write brief/requirements.md (delete the template marker line), then:
-agent-kit prepare
+# write brief/requirements.md (delete the template marker line), then run
+# the steps one by one (see "The steps" above):
+agent-kit spec discover
+agent-kit spec define-product
+# ... and so on, until:
+agent-kit readiness
 ```
 
 **Low-cost settings** in `agent-kit.toml` (`opus` gives better specs; `sonnet` costs less):
@@ -106,15 +139,15 @@ spec = "sonnet"
 review = "sonnet"
 plan = "sonnet"
 
-[workflow]
-max_review_cycles = 2
-
 [limits]
-max_budget_usd = 2      # per stage call
+max_budget_usd = 2      # per Claude call (each step makes one; review makes one per reviewer)
 
 [review]
 agents = ["product-reviewer", "qa-reviewer"]   # add "architecture-reviewer" if it has a backend
 ```
+
+Fewer review rounds also cost less: you decide how many times to run
+`repair` and `review` again.
 
 **Example brief** (`brief/requirements.md`):
 
@@ -148,8 +181,9 @@ None.
 
 **Then:**
 
-1. Read `docs/08-readiness.md`. If it says `NOT_READY`, answer the open
-   decisions: add your answers to the brief and run `agent-kit prepare` again.
+1. Read `docs/08-readiness.md`. If it says `NOT_READY` (`readiness` exits 2),
+   answer the open decisions: add your answers to the brief and run the steps
+   again from `agent-kit spec discover`.
 2. `agent-kit approve` (type `APPROVE`), then `agent-kit gate`.
 3. Build one task at a time (see [Build prompts](#build-prompts)).
 
@@ -184,15 +218,15 @@ two features without blocking each other or causing merge conflicts in `docs/`.
 ```bash
 cd ~/claims-portal
 agent-kit -w specs/foundation init     # the first init also sets the default workspace
-# write specs/foundation/brief/requirements.md, then:
-agent-kit prepare
+# write specs/foundation/brief/requirements.md, then run the steps:
+agent-kit spec discover                # ... through agent-kit readiness
 # a tech lead reads docs/ and tasks/, then:
 agent-kit approve
 
-# later, a new feature:
+# later, a new feature (not the default workspace, so add -w to every step):
 agent-kit -w specs/document-upload init
 # write its brief, then:
-agent-kit -w specs/document-upload prepare
+agent-kit -w specs/document-upload spec discover   # ... through readiness
 ```
 
 **Settings:**
@@ -202,9 +236,6 @@ agent-kit -w specs/document-upload prepare
 spec = "opus"
 review = "opus"
 plan = "opus"
-
-[workflow]
-max_review_cycles = 3
 
 [limits]
 max_turns = 50
@@ -300,12 +331,13 @@ my-shop/                      # your app, unchanged
 ```bash
 cd ~/my-shop
 agent-kit -w specs/gift-cards init    # plain "agent-kit init" refuses if docs/ or tasks/ hold your files
-# write specs/gift-cards/brief/requirements.md, then:
-agent-kit prepare                     # the first init set this workspace as the default
+# write specs/gift-cards/brief/requirements.md, then run the steps.
+# The first init set this workspace as the default, so no -w is needed:
+agent-kit spec discover               # ... through agent-kit readiness
 ```
 
 The next feature gets its own folder: `agent-kit -w specs/wishlist init`, then
-`agent-kit -w specs/wishlist prepare`.
+the steps with `-w specs/wishlist`.
 
 **Example brief:**
 
@@ -379,15 +411,15 @@ also works, with workspaces like `specs/payments/refunds-v2`.
 ```bash
 cd ~/platform/services/payments
 agent-kit -w specs/refunds-v2 init
-# write specs/refunds-v2/brief/requirements.md, then:
-agent-kit prepare
+# write specs/refunds-v2/brief/requirements.md, then run the steps:
+agent-kit spec discover               # ... through agent-kit readiness
 # the feature owner approves; CI runs the gate (see case 2)
 ```
 
 **Settings:** as in case 2, plus:
 
 - `[verify]`: copy the exact commands your CI runs for this service.
-- `max_budget_usd`: set a limit per stage call so costs stay known.
+- `max_budget_usd`: set a limit per Claude call so costs stay known.
 - `[models]`: use the model names your company account allows.
 
 **Company notes:**
@@ -396,7 +428,7 @@ agent-kit prepare
   made-up examples. Briefs, specs and logs are stored as files and committed.
 - Your existing `AGENTS.md` keeps its content. The kit adds one managed block.
   Its gate rule covers only agent-kit tasks; other work in the repo is not blocked.
-- Reviewer agents are read only. During a stage, writes outside the workspace are blocked.
+- Reviewer agents are read only. While a step runs, writes outside the workspace are blocked.
 - In normal sessions the guard is off unless you add it (next section).
 
 ---
@@ -447,13 +479,13 @@ task file, and the contracts in specs/gift-cards/docs/05-technical-spec.md.
 
 Repeat 2 and 3 until the review passes, then commit and go to the next task.
 If a skill stops with `BLOCKED` because the spec is wrong or unclear, do not let
-it guess: fix the brief or docs, then run `agent-kit review` and `agent-kit plan`
-again, and approve the new baseline.
+it guess: fix the brief or docs, then run `agent-kit review`, `agent-kit plan` and
+`agent-kit readiness` again, and approve the new baseline.
 
 ## Optional: guard in normal sessions
 
 The global install does not change your settings. So the guard hook runs only
-inside `agent-kit` stages. In your normal Claude Code sessions, the `AGENTS.md`
+inside `agent-kit` steps. In your normal Claude Code sessions, the `AGENTS.md`
 rules still tell agents not to approve or touch `.workflow/`, but nothing
 enforces it. For team and company work you can turn the guard on for all your
 Claude Code sessions. Add this to `~/.claude/settings.json` (use your kit path):
@@ -469,7 +501,7 @@ Claude Code sessions. Add this to `~/.claude/settings.json` (use your kit path):
 }
 ```
 
-Outside a stage it only blocks writes to any `.workflow/state/` or
+Outside a step it only blocks writes to any `.workflow/state/` or
 `.workflow/approvals/` folder, and shell commands that mention those folders,
 `agent-kit approve` or `approve.sh`. Other projects are not affected unless they
 use those names.

@@ -1,4 +1,4 @@
-# Stage D: the hard readiness gate and human approval.
+# Step D: human approval and the hard readiness gate.
 # No AI here: only files, JSON and hashes. The AI judged quality in earlier
 # stages; this script decides whether coding may start.
 
@@ -27,12 +27,12 @@ gate_checks() {
   fi
 
   if [ ! -f "$AK_READINESS_STATE" ]; then
-    fail "no readiness result (run 'agent-kit plan')"; bad=1
+    fail "no readiness result (run 'agent-kit readiness')"; bad=1
   elif ! jq -e '.status == "READY" and .critical == 0 and .major == 0 and .unresolved_decisions == 0
                and (.decisions | type == "array" and length == 0)' "$AK_READINESS_STATE" >/dev/null; then
     fail "readiness: $(jq -r '"\(.status), \(.critical) critical, \(.major) major, \(.unresolved_decisions) open decisions"' "$AK_READINESS_STATE")"; bad=1
   elif [ "$(jq -r .spec_hash "$AK_READINESS_STATE")" != "$base" ]; then
-    fail "specs or tasks changed after the readiness check (run 'agent-kit plan')"; bad=1
+    fail "specs or tasks changed after the readiness check (run 'agent-kit readiness')"; bad=1
   else
     ok "readiness: READY"
   fi
