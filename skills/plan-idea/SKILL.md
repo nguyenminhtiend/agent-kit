@@ -37,7 +37,7 @@ Where the user says; else where the project keeps plans; else ask. When the user
 - Scope: in, out, must not change
 - Approach and why; alternatives and why not
 - Changes: files; contracts with exact names, fields, types and errors
-- Acceptance criteria: `Given / when / then` with real values, incl. error and "must not" cases
+- Acceptance criteria: `AC1: Given / when / then` with real values, incl. error and "must not" cases
 - Steps: `step -> verify: check`
 - Checks: commands and their source
 - Risks and open items

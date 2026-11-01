@@ -32,7 +32,7 @@ No one can be asked: every question goes in the document with your best default.
 1. Business facts (users, prices, limits, legal duties) come only from the brief. Code facts (current behavior, stack) come from the code, with path. Anything you add is an assumption with a reason.
 2. One requirement per need: `REQ-001 (<brief section or quote>): ...`; "implied" needs a matching assumption. Add quality needs (speed, privacy, accessibility) only when the brief or the product clearly needs them. Existing product: only the change.
 3. Each requirement gets pass/fail criteria: `REQ-001-AC1: Given <state>, when <action>, then <checkable result>`, with real values. Behavior that must stay: `Must not: ...`. Vague words (fast, easy, secure, correct) become a number or visible result; no number in the brief: propose one as an assumption.
-4. Gaps: a small default that changes nothing big goes to Assumptions. Only the owner can answer and a wrong default changes the build: `DEC-001: <question>`, why it matters, 2–3 options, your recommendation. Quote both sides of every contradiction in the brief there. A `DEC` answered in the brief's Decisions is closed: apply it with source `DEC-001` and drop it from Open decisions.
+4. Gaps: a small default that changes nothing big goes to Assumptions. Only the owner can answer and a wrong default changes the build: `DEC-001: <question>` (next number unused in the brief and every document), why it matters, 2–3 options, your recommendation. Quote both sides of every contradiction in the brief there. A `DEC` answered in the brief's Decisions is closed: apply it with source `DEC-001` and drop it from Open decisions.
 5. Rerun: keep IDs; new ones take the next number; removed ones are marked `retired`, never reused.
 
 ## Rules

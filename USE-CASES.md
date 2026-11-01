@@ -92,7 +92,7 @@ talk through and agree with Claude before building, use `plan-idea` (case 6).
 | `agent-kit gate` | Says if coding may start (exit 0 = yes) | you or CI |
 | Skill `plan-idea` | Interviews you about a feature or idea and writes a plan you agree to; also asks you the open decisions | you, in Claude Code or Codex |
 | Build skills: `build-task`, `fix-review`, `fix-bug`, `optimize` | Write and fix code | you, in Claude Code or Codex |
-| `code-reviewer` agent | Reviews a code change, read only | you, in Claude Code or Codex |
+| `code-reviewer` agent | Reviews a code change, read only (in Codex: by instruction only) | you, in Claude Code or Codex |
 
 Build skills and `plan-idea` never start on their own. Call them by name: `/build-task ...` in
 Claude Code, `$build-task ...` in Codex.
@@ -420,7 +420,9 @@ agent-kit spec define-requirements    # ... through agent-kit review
   made-up examples. Briefs, specs and logs are stored as files and committed.
 - Your existing `AGENTS.md` keeps its content. The kit adds one managed block.
   Its gate rule covers only agent-kit tasks; other work in the repo is not blocked.
-- Reviewer agents are read only. While a step runs, writes outside the workspace are blocked.
+- Reviewer agents are read only in Claude Code and in `agent-kit review`. In Codex
+  it is only an instruction: the session's sandbox decides. While a step runs,
+  writes outside the workspace are blocked.
 - In normal sessions the guard is off unless you add it (next section).
 
 ---

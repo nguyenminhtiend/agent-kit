@@ -15,11 +15,12 @@ disable-model-invocation: true
 Documents are named by role. Paths: from the request; else find the project's matching files.
 
 - The requirements and the design, or one plan marked `Status: Agreed`
+- The brief's Decisions section, if any: the owner's answers
 - Existing project: its code (read only)
 
 ## Writes
 
-- The plan
+- The plan (from an agreed plan: a new file beside it; never change the agreed plan)
 - One task file per task, at the path the request gives (else one folder per task beside the plan), numbered in build order (`001-setup`, `002-...`)
 
 ## Plan sections
@@ -39,7 +40,7 @@ A fresh agent reads each task cold: give it the decided names, values and tests,
 3. Size: about 1–5 files and up to 4 criteria. Split on "and" in a title; merge what can't be tested alone.
 4. Copy each AC with its ID and exact values; add at least one error or edge criterion when a task takes input or calls out. Test plan: per criterion, the test level or manual check.
 5. Spike: one question, time box, pass signal, fallback, evidence to deliver; no feature code.
-6. Don't guess past the source: write what's known, add `Open: <question>` in the task and a `DEC` in the plan.
+6. Don't guess past the source: write what's known, add `Open: <question>` in the task and a `DEC` (next number unused in the brief and every document) in the plan. A `DEC` answered in the brief's Decisions is closed: apply it with source `DEC-001`.
 7. Existing code: build on it; no setup for what exists; Scope names real files.
 
 ## Rules
