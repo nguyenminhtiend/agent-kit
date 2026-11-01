@@ -4,26 +4,17 @@
 AK_CONFIG_FILE="agent-kit.toml"
 
 # Document paths inside the workspace. Skills and agents name documents only by
-# role ("the PRD"); doc_map tells Claude where each one is. Change names here only.
+# role ("the design"); doc_map tells Claude where each one is. Change names here only.
 AK_BRIEF="brief/requirements.md"
 AK_BRIEF_MARKER="agent-kit:brief-template"
 AK_DOC_REQUIREMENTS="docs/01-requirements.md"
-AK_DOC_PRD="docs/02-prd.md"
-AK_DOC_UX="docs/03-ux-design.md"
-AK_DOC_ARCHITECTURE="docs/04-architecture.md"
-AK_DOC_TECHNICAL="docs/05-technical-spec.md"
-AK_DOC_VALIDATION="docs/06-validation.md"
-AK_PLAN_DOC="docs/07-implementation-plan.md"
-AK_READINESS_DOC="docs/08-readiness.md"
+AK_DOC_DESIGN="docs/02-design.md"
+AK_PLAN_DOC="docs/03-plan.md"
 AK_TASK_FILE="tasks/NNN-short-name/task.md"
 
 # Spec stages in run order: "<skill>:<document it writes>".
-AK_SPEC_STAGES="discover:$AK_DOC_REQUIREMENTS
-define-product:$AK_DOC_PRD
-design-ux:$AK_DOC_UX
-design-architecture:$AK_DOC_ARCHITECTURE
-design-technical:$AK_DOC_TECHNICAL
-validate-feasibility:$AK_DOC_VALIDATION"
+AK_SPEC_STAGES="define-requirements:$AK_DOC_REQUIREMENTS
+design-solution:$AK_DOC_DESIGN"
 
 # Sent with every runner call: which path holds which document.
 doc_map() {
@@ -31,20 +22,14 @@ doc_map() {
 Documents (paths from the current folder):
 - brief: $(dirname "$AK_BRIEF")/ (start with $AK_BRIEF)
 - requirements: $AK_DOC_REQUIREMENTS
-- PRD: $AK_DOC_PRD
-- UX design: $AK_DOC_UX
-- architecture: $AK_DOC_ARCHITECTURE
-- technical spec: $AK_DOC_TECHNICAL
-- validation: $AK_DOC_VALIDATION
+- design: $AK_DOC_DESIGN
 - plan: $AK_PLAN_DOC
 - task files: $AK_TASK_FILE, one folder per task, numbered in build order
-- readiness report: $AK_READINESS_DOC
 EOF
 }
 
 # Files only the runner (or a person) may write. The guard hook protects them.
 AK_REVIEW_STATE=".workflow/state/review.json"
-AK_READINESS_STATE=".workflow/state/readiness.json"
 AK_APPROVAL=".workflow/approvals/spec-approved.json"
 
 info() { printf '==> %s\n' "$*" >&2; }
@@ -54,7 +39,7 @@ warn() { printf 'warning: %s\n' "$*" >&2; }
 die()  { printf 'error: %s\n' "$*" >&2; exit 1; }
 
 # Exit code of a step that ran fine but found work to do: blocking review
-# findings, or a NOT_READY verdict. Errors and missing inputs exit 1.
+# findings, or failed spec checks. Errors and missing inputs exit 1.
 AK_EXIT_NEEDS_WORK=2
 
 # Print the command to run next, with the same --workspace the user gave.
@@ -203,19 +188,9 @@ content_hash() {
 
 spec_doc_paths() { printf '%s\n' "$AK_SPEC_STAGES" | cut -d: -f2; }
 
-# Hash of what the reviewers saw: the brief and docs 01-06.
-spec_hash() {
-  check_no_symlinks brief docs tasks || return 1
-  # shellcheck disable=SC2046  # paths have no spaces
-  content_hash brief $(spec_doc_paths)
-}
-
-# Hash of the whole baseline a person approves: brief, all docs and all tasks.
+# Hash of the whole baseline: brief, all docs and all tasks. The review, the
+# approval and the gate are all bound to it.
 baseline_hash() { content_hash brief docs tasks; }
-
-# The readiness report is the assessor's output; all other baseline files are
-# inputs and must stay unchanged while it is assessing them.
-readiness_input_hash() { content_hash --exclude "$AK_READINESS_DOC" brief docs tasks; }
 
 count_tasks() {
   find tasks -mindepth 2 -maxdepth 2 -type f -name task.md 2>/dev/null | wc -l | tr -d ' '
@@ -233,4 +208,15 @@ check_spec_docs() {
   for e in $AK_SPEC_STAGES; do
     [ -s "${e#*:}" ] || die "${e#*:} is missing. Run 'agent-kit spec ${e%%:*}' first."
   done
+}
+
+check_plan() {
+  [ -s "$AK_PLAN_DOC" ] || die "$AK_PLAN_DOC is missing. Run 'agent-kit plan' first."
+  [ "$(count_tasks)" -gt 0 ] || die "no tasks/*/task.md files. Run 'agent-kit plan' first."
+}
+
+# True when the last review passed on the files as they are now.
+review_passed_now() {
+  [ -f "$AK_REVIEW_STATE" ] && jq -e '.status == "PASS"' "$AK_REVIEW_STATE" >/dev/null &&
+    [ "$(jq -r .spec_hash "$AK_REVIEW_STATE")" = "$(baseline_hash)" ]
 }

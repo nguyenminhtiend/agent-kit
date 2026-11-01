@@ -1,41 +1,31 @@
-# Step D: human approval and the hard readiness gate.
-# No AI here: only files, JSON and hashes. The AI judged quality in earlier
-# stages; this script decides whether coding may start.
+# Step D: human approval and the hard gate.
+# No AI here: only files, JSON, hashes and the spec checks. The AI judged quality
+# in earlier steps; this script decides whether coding may start.
 
 # gate_checks MODE    MODE = full | before-approval
 # Prints one line per check. Returns 0 only when every check passes.
 gate_checks() {
-  local mode="$1" bad=0 f n spec base
-  spec="$(spec_hash)" || return 1
+  local mode="$1" bad=0 f n base
   base="$(baseline_hash)" || return 1
 
-  for f in $AK_BRIEF $(spec_doc_paths) $AK_PLAN_DOC $AK_READINESS_DOC; do
+  for f in $AK_BRIEF $(spec_doc_paths) $AK_PLAN_DOC; do
     if [ -s "$f" ]; then ok "$f"; else fail "$f is missing or empty"; bad=1; fi
   done
-
   n="$(count_tasks)"
   if [ "$n" -gt 0 ]; then ok "$n task files in tasks/"; else fail "no tasks/*/task.md files"; bad=1; fi
+  [ "$bad" -eq 0 ] || return 1
 
   if [ ! -f "$AK_REVIEW_STATE" ]; then
     fail "no review result (run 'agent-kit review')"; bad=1
   elif ! jq -e '.status == "PASS"' "$AK_REVIEW_STATE" >/dev/null; then
     fail "review status is $(jq -r .status "$AK_REVIEW_STATE")"; bad=1
-  elif [ "$(jq -r .spec_hash "$AK_REVIEW_STATE")" != "$spec" ]; then
-    fail "specs changed after the review (run 'agent-kit review')"; bad=1
+  elif [ "$(jq -r .spec_hash "$AK_REVIEW_STATE")" != "$base" ]; then
+    fail "brief, docs or tasks changed after the review (run 'agent-kit review')"; bad=1
   else
     ok "review passed"
   fi
 
-  if [ ! -f "$AK_READINESS_STATE" ]; then
-    fail "no readiness result (run 'agent-kit readiness')"; bad=1
-  elif ! jq -e '.status == "READY" and .critical == 0 and .major == 0 and .unresolved_decisions == 0
-               and (.decisions | type == "array" and length == 0)' "$AK_READINESS_STATE" >/dev/null; then
-    fail "readiness: $(jq -r '"\(.status), \(.critical) critical, \(.major) major, \(.unresolved_decisions) open decisions"' "$AK_READINESS_STATE")"; bad=1
-  elif [ "$(jq -r .spec_hash "$AK_READINESS_STATE")" != "$base" ]; then
-    fail "specs or tasks changed after the readiness check (run 'agent-kit readiness')"; bad=1
-  else
-    ok "readiness: READY"
-  fi
+  spec_checks || bad=1
 
   if [ "$mode" = full ]; then
     if [ ! -f "$AK_APPROVAL" ]; then
@@ -50,21 +40,12 @@ gate_checks() {
   return "$bad"
 }
 
-show_open_decisions() {
-  [ -f "$AK_READINESS_STATE" ] || return 0
-  if jq -e '(.decisions // []) | length > 0' "$AK_READINESS_STATE" >/dev/null; then
-    info "open decisions (from $AK_READINESS_DOC)"
-    jq -r '.decisions[] | "  - \(.id): \(.question)\n      recommended: \(.recommendation // "-")"' "$AK_READINESS_STATE" >&2
-  fi
-}
-
 ak_gate() {
   enter_project
-  info "readiness gate"
+  info "gate"
   if gate_checks full; then
     info "READY: implementation may start"
   else
-    show_open_decisions
     die "BLOCKED: fix the failed checks above"
   fi
 }
@@ -82,13 +63,11 @@ ak_approve() {
 
   info "checking the spec baseline"
   gate_checks before-approval || die "cannot approve yet: fix the failed checks above"
-  show_open_decisions
 
   local base answer by
   base="$(baseline_hash)" || die "cannot hash the spec baseline"
   echo
-  jq -r '"Summary: \(.summary // "-")"' "$AK_READINESS_STATE"
-  echo "Baseline: brief/, docs/ and tasks/ exactly as they are now"
+  echo "Baseline: brief/, docs/ and $(count_tasks) task files in tasks/, exactly as they are now"
   echo "Hash:     $base"
   printf 'Type APPROVE to approve: '
   IFS= read -r answer || true

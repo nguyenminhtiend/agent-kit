@@ -31,7 +31,11 @@ BIN_DIR="${AGENT_KIT_BIN_DIR:-$HOME/.local/bin}"
 # What the runner needs at run time. Copied to <project>/.agent-kit/.
 RUNTIME_ITEMS="VERSION bin lib hooks schemas rules templates skills agents"
 # Commands that get a wrapper in <project>/scripts/.
-WRAPPER_COMMANDS="spec review repair plan readiness approve gate"
+WRAPPER_COMMANDS="spec plan check review repair approve gate"
+# Names from older kit versions. A project install warns when they are still there.
+RETIRED_SKILLS="discover define-product design-ux design-architecture design-technical validate-feasibility assess-readiness refactor"
+RETIRED_AGENTS="product-reviewer architecture-reviewer qa-reviewer"
+RETIRED_WRAPPERS="readiness"
 
 CLAUDE_HOOK_MATCHER="Write|Edit|MultiEdit|NotebookEdit|Bash"
 CLAUDE_HOOK_COMMAND='"$CLAUDE_PROJECT_DIR"/.agent-kit/hooks/guard.sh'
@@ -89,6 +93,38 @@ unlink_item() {  # dest
   case "$(readlink "$dest")" in
     "$KIT"/*) run rm "$dest"; say "  removed $dest" ;;
   esac
+}
+
+# Global: remove links into this kit whose target is gone (a skill or agent that
+# was removed or renamed). Other links and files are never touched.
+prune_stale_links() {  # dir
+  local dir="$1" p
+  [ -d "$dir" ] || return 0
+  for p in "$dir"/*; do
+    [ -L "$p" ] || continue
+    [ -e "$p" ] && continue
+    case "$(readlink "$p")" in
+      "$KIT"/*) run rm "$p"; say "  removed $p (no longer in the kit)" ;;
+    esac
+  done
+}
+
+# Project: name files from older kit versions. They are the user's committed
+# files now, so only warn.
+warn_retired() {
+  local s a w d found=""
+  for s in $RETIRED_SKILLS; do
+    for d in "$PROJECT/.claude/skills/$s" "$PROJECT/.agents/skills/$s"; do [ -e "$d" ] && found="$found $d"; done
+  done
+  for a in $RETIRED_AGENTS; do
+    for d in "$PROJECT/.claude/agents/$a.md" "$PROJECT/.codex/agents/$a.toml"; do [ -e "$d" ] && found="$found $d"; done
+  done
+  if [ "$SCRIPTS_DIR" != none ]; then
+    for w in $RETIRED_WRAPPERS; do [ -e "$PROJECT/$SCRIPTS_DIR/$w.sh" ] && found="$found $PROJECT/$SCRIPTS_DIR/$w.sh"; done
+  fi
+  [ -z "$found" ] && return 0
+  warn "these files are from an older kit version and are no longer used; remove them (git rm -r ...):"
+  for d in $found; do warn "  $d"; done
 }
 
 # Project: copy SRC (file or folder) to DEST.
@@ -184,6 +220,8 @@ install_global() {
     info "Claude Code (global): $CLAUDE_DIR"
     for s in $(skill_names); do link_item "$KIT/skills/$s" "$CLAUDE_DIR/skills/$s"; done
     for a in $(agent_names); do link_item "$KIT/agents/$a.md" "$CLAUDE_DIR/agents/$a.md"; done
+    prune_stale_links "$CLAUDE_DIR/skills"
+    prune_stale_links "$CLAUDE_DIR/agents"
   fi
 
   if want codex; then
@@ -191,6 +229,8 @@ install_global() {
     for s in $(skill_names); do link_item "$KIT/skills/$s" "$AGENTS_SKILLS_DIR/$s"; done
     gen_codex_agents
     for a in $(agent_names); do link_item "$KIT/dist/codex/agents/$a.toml" "$CODEX_DIR/agents/$a.toml"; done
+    prune_stale_links "$AGENTS_SKILLS_DIR"
+    prune_stale_links "$CODEX_DIR/agents"
   fi
 
   info "agent-kit command: $BIN_DIR/agent-kit"
@@ -212,11 +252,15 @@ uninstall_global() {
     info "Claude Code (global): removing links into $KIT"
     for s in $(skill_names); do unlink_item "$CLAUDE_DIR/skills/$s"; done
     for a in $(agent_names); do unlink_item "$CLAUDE_DIR/agents/$a.md"; done
+    prune_stale_links "$CLAUDE_DIR/skills"
+    prune_stale_links "$CLAUDE_DIR/agents"
   fi
   if want codex; then
     info "Codex (global): removing links into $KIT"
     for s in $(skill_names); do unlink_item "$AGENTS_SKILLS_DIR/$s"; done
     for a in $(agent_names); do unlink_item "$CODEX_DIR/agents/$a.toml"; done
+    prune_stale_links "$AGENTS_SKILLS_DIR"
+    prune_stale_links "$CODEX_DIR/agents"
   fi
   if [ "$TARGET" = both ]; then
     unlink_item "$BIN_DIR/agent-kit"
@@ -271,6 +315,8 @@ install_project() {
     for a in $(agent_names); do copy_item "$KIT/dist/codex/agents/$a.toml" "$PROJECT/.codex/agents/$a.toml"; done
     merge_hook "$PROJECT/.codex/hooks.json" "$CODEX_HOOK_MATCHER" "$CODEX_HOOK_COMMAND"
   fi
+
+  warn_retired
 
   info "project files"
   local ws_flag=""

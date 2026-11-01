@@ -12,6 +12,8 @@ The rules, skills and agents in this kit were written for agent-kit. They paraph
 | addy | [addyosmani/agent-skills](https://github.com/addyosmani/agent-skills) | `8bfcc1f9916f2eea55494d8c1fa7f4bde867dd9e` | MIT | (c) 2025 Addy Osmani |
 | karpathy | [multica-ai/andrej-karpathy-skills](https://github.com/multica-ai/andrej-karpathy-skills) | `2c606141936f1eeef17fa3043a72095b4765b9c2` | MIT, declared in metadata only (no root LICENSE) | none supplied |
 
+On 2026-11-01 the kit was cut to 9 skills and 2 agents. A merged file lists the sources of every file it replaced; it keeps only a subset of those ideas. Two research ideas shaped that cut, but no text came from them: the test "would the agent get this wrong without this instruction?" ([agentskills.io best practices](https://agentskills.io/skill-creation/best-practices)) and the three-document shape of requirements, design and tasks ([Kiro specs](https://kiro.dev/docs/specs/), [Spec Kit](https://github.com/github/spec-kit)).
+
 ## Sources per file
 
 ### rules/engineering.md
@@ -21,7 +23,41 @@ The rules, skills and agents in this kit were written for agent-kit. They paraph
 - karpathy [skills/karpathy-guidelines/SKILL.md](https://github.com/multica-ai/andrej-karpathy-skills/blob/2c606141936f1eeef17fa3043a72095b4765b9c2/skills/karpathy-guidelines/SKILL.md) L11, L13-21, L23-33, L35-49, L51-67: Intro "care over speed, use judgment"; Think before coding: assumptions, several readings, name what is unclear, simpler way / push back; Keep it simple: least code, no unasked features/options, no single-use abstraction, no impossible-case handling, 200→50, senior engineer test; Small changes: touch only what is needed, trace every line, no nearby "improvements", match style, note-don't-fix, clean only your own orphans; Verify: turn tasks into checkable goals, short plan with verify steps
 - superpowers [skills/verification-before-completion/SKILL.md](https://github.com/obra/superpowers/blob/2ce8aa15d05bd57213e6f746f953aafb7ded7a8b/skills/verification-before-completion/SKILL.md) L14-36, L31, L38-59, L38-48: Verify: gate — pick command, run all, read output + exit code, then claim; Verify: what is NOT proof (old run, "should", linter ≠ build, agent says success); Verify: report real state if it fails
 
-### skills/discover/SKILL.md
+The rule "Structure-only change: tests pass after each step and no expected value changes" comes from the former `refactor` skill (removed 2026-11-01).
+
+From the former `refactor`:
+
+- addy [docs/adoption-guide.md](https://github.com/addyosmani/agent-skills/blob/8bfcc1f9916f2eea55494d8c1fa7f4bde867dd9e/docs/adoption-guide.md) L90, L111: Characterization test = pin what the code does now, right or wrong; "no safety net, no refactor"
+- addy [skills/code-review-and-quality/SKILL.md](https://github.com/addyosmani/agent-skills/blob/8bfcc1f9916f2eea55494d8c1fa7f4bde867dd9e/skills/code-review-and-quality/SKILL.md) L60: Reduce complexity, don't just move it
+- addy [skills/code-simplification/SKILL.md](https://github.com/addyosmani/agent-skills/blob/8bfcc1f9916f2eea55494d8c1fa7f4bde867dd9e/skills/code-simplification/SKILL.md) L14-28, L30-41, L32-42, L44-59, L101-103, L107-121, L123-155, L157-169, L157-159, L171, L173-185, L309-317, L319-331: When to use: works but hard to change; not when you don't understand it or it will be rewritten; Name goal and scope; prefer recently changed code; Understand before touching (callers, edge cases, why, git blame); Deep nesting → guard clauses; long function → split; One change, run tests, revert on red; Big mechanical edits → use a tool; Compare before/after; revert if not better; Behaviour stays exactly the same; Tests pass without changing what they expect; Never mix refactoring with features or fixes; Follow project conventions; Do not remove error handling
+- addy [skills/deprecation-and-migration/SKILL.md](https://github.com/addyosmani/agent-skills/blob/8bfcc1f9916f2eea55494d8c1fa7f4bde867dd9e/skills/deprecation-and-migration/SKILL.md) L94-104, L108-115, L191: Parallel change for shared interfaces
+- ecc [agents/refactor-cleaner.md](https://github.com/affaan-m/ecc/blob/b38be6a7f6350964d59328b52f0624e1d1d552d1/agents/refactor-cleaner.md) L43-47, L82-87: When to use: not without tests; Grep every reference, including dynamic ones
+- ecc [skills/orch-refine-code/SKILL.md](https://github.com/affaan-m/ecc/blob/b38be6a7f6350964d59328b52f0624e1d1d552d1/skills/orch-refine-code/SKILL.md) L13-18, L25-27: When to use: same behaviour, better structure; behaviour change = wrong skill; Green before you start; add characterization tests if thin
+- mattpocock [skills/engineering/code-review/SKILL.md](https://github.com/mattpocock/skills/blob/a496f5513d4a4cf889bc48e189e579f4b0bdf6aa/skills/engineering/code-review/SKILL.md) L43-56: Named moves (duplicated code, mysterious name, data clumps, repeated switches, middle man, speculative generality, feature envy)
+- mattpocock [skills/engineering/codebase-design/SKILL.md](https://github.com/mattpocock/skills/blob/a496f5513d4a4cf889bc48e189e579f4b0bdf6aa/skills/engineering/codebase-design/SKILL.md) L63: Deletion test
+- mattpocock [skills/engineering/to-tickets/SKILL.md](https://github.com/mattpocock/skills/blob/a496f5513d4a4cf889bc48e189e579f4b0bdf6aa/skills/engineering/to-tickets/SKILL.md) L23: When to use: "make the change easy, then make the easy change"
+
+### skills/plan-idea/SKILL.md
+
+Read on 2026-11-01 at the same pinned commits.
+
+- addy [.claude/commands/plan.md](https://github.com/addyosmani/agent-skills/blob/8bfcc1f9916f2eea55494d8c1fa7f4bde867dd9e/.claude/commands/plan.md) L19: Never overwrite another unfinished plan
+- addy [skills/interview-me/SKILL.md](https://github.com/addyosmani/agent-skills/blob/8bfcc1f9916f2eea55494d8c1fa7f4bde867dd9e/skills/interview-me/SKILL.md) L20, L26-32, L34-36, L53-69, L55-77, L79-92, L94-111, L113-130, L117, L132-140: Ground to cover (who, why, success, constraint); Not for clear asks; No one to ask: list the questions, don't guess; One question per message; Recommended answer attached; Buzzword answers: ask what it must do; Play back incl. out of scope; Explicit yes ("sounds good" is not yes), offer the next step and stop; "Whatever you think": re-ask with two options; Stop when you can predict the next three answers, else step back
+- ecc [commands/plan.md](https://github.com/affaan-m/ecc/blob/b38be6a7f6350964d59328b52f0624e1d1d552d1/commands/plan.md) L51-63, L69-110: Patterns to follow with path:line, or "none found"; Plan template: files to change, validation commands, risks
+- karpathy [skills/karpathy-guidelines/SKILL.md](https://github.com/multica-ai/andrej-karpathy-skills/blob/2c606141936f1eeef17fa3043a72095b4765b9c2/skills/karpathy-guidelines/SKILL.md) L20, L25-29, L60-65: Push back; Smallest version, no unasked features; Steps as `step -> verify: check`
+- mattpocock [.out-of-scope/native-question-tool.md](https://github.com/mattpocock/skills/blob/a496f5513d4a4cf889bc48e189e579f4b0bdf6aa/.out-of-scope/native-question-tool.md) L5-11: Names no question tool, so the same file runs in Claude Code and Codex
+- mattpocock [.out-of-scope/question-limits.md](https://github.com/mattpocock/skills/blob/a496f5513d4a4cf889bc48e189e579f4b0bdf6aa/.out-of-scope/question-limits.md) L9-12: The user may stop the interview any time
+- mattpocock [skills/engineering/to-spec/SKILL.md](https://github.com/mattpocock/skills/blob/a496f5513d4a4cf889bc48e189e579f4b0bdf6aa/skills/engineering/to-spec/SKILL.md) L13, L15-17, L43-55, L67-69: Read decision records; Test at an existing seam; Decisions (modules, interfaces, schema, API); Out of scope
+- mattpocock [skills/productivity/grilling/SKILL.md](https://github.com/mattpocock/skills/blob/a496f5513d4a4cf889bc48e189e579f4b0bdf6aa/skills/productivity/grilling/SKILL.md) L6-8, L24, L26, L28, L30: Ask only what earlier answers allow, a few numbered at once, each with a recommended answer; Worded so "yes" accepts it; Dependent questions wait for a later round; Facts are your job (a subagent searches meanwhile), decisions the user's; Done only when the user confirms
+- superpowers [skills/brainstorming/SKILL.md](https://github.com/obra/superpowers/blob/2ce8aa15d05bd57213e6f746f953aafb7ded7a8b/skills/brainstorming/SKILL.md) L22-24, L38-45, L49-63, L88-101, L103-111, L113-122, L124-132, L139-148, L170-180, L188-201, L205-206, L210-218, L224-226, L228-245, L247-257, L268, L271: Not for clear asks; Look before you ask, never ask what the project answers; First message (~200 words, echo, findings, what changes the ask, one question); Plain words, open questions first, options when stuck; Decide small details out loud, your choices marked as your call; Ground to cover (problem, why now, success, non-goals, current state); Specific questions, say what the answer changes; Approaches in their own message, 2–3, recommend one; Play back, only what they said is theirs; Size the plan to the work; Several independent projects: agree an order; Plan a builder can work from without asking; Plan location: the user's choice; Builder check and the three piles; Nothing built before approval, what counts as building, the spike exception; A default they never heard; Approval covers only what you showed
+- superpowers [skills/brainstorming/builder-check-prompt.md](https://github.com/obra/superpowers/blob/2ce8aa15d05bd57213e6f746f953aafb7ded7a8b/skills/brainstorming/builder-check-prompt.md) L7-22: Builder check: a reader who can't ask lists where a wrong guess would matter
+- superpowers [skills/writing-plans/SKILL.md](https://github.com/obra/superpowers/blob/2ce8aa15d05bd57213e6f746f953aafb7ded7a8b/skills/writing-plans/SKILL.md) L10: Write down what you decided (files, names, values, tests)
+
+### skills/define-requirements/SKILL.md
+
+Merged on 2026-11-01 from the former `discover` and `define-product`. The 2026-11-01 minimal rewrite kept only a subset of the ideas below: the ones a strong model would get wrong without them.
+
+From the former `discover`:
 
 - addy [skills/documentation-and-adrs/SKILL.md](https://github.com/addyosmani/agent-skills/blob/8bfcc1f9916f2eea55494d8c1fa7f4bde867dd9e/skills/documentation-and-adrs/SKILL.md) L36-44
 - addy [skills/interview-me/SKILL.md](https://github.com/addyosmani/agent-skills/blob/8bfcc1f9916f2eea55494d8c1fa7f4bde867dd9e/skills/interview-me/SKILL.md) L20, L36, L53-60, L84-86, L96-111: Intro: cannot ask, put questions in the doc with a guess; The five things (who, why now, success, hard limit, out of scope); (missing who/why/success/constraint = underspecified); Buzzwords as goals; Question + default (best guess)
@@ -36,7 +72,7 @@ The rules, skills and agents in this kit were written for agent-kit. They paraph
 - superpowers [skills/brainstorming/SKILL.md](https://github.com/obra/superpowers/blob/2ce8aa15d05bd57213e6f746f953aafb7ded7a8b/skills/brainstorming/SKILL.md) L38-45, L113-122, L178-180, L228-239: Read brief and linked files; never ask what they already answer; Facts vs guesses, guesses carry a reason; (current state); Three piles (settle it yourself / only the owner can answer / skip)
 - superpowers [skills/brainstorming/builder-check-prompt.md](https://github.com/obra/superpowers/blob/2ce8aa15d05bd57213e6f746f953aafb7ded7a8b/skills/brainstorming/builder-check-prompt.md) L19-20: Third pile "a later stage owns it"
 
-### skills/define-product/SKILL.md
+From the former `define-product`:
 
 - addy [skills/idea-refine/refinement-criteria.md](https://github.com/addyosmani/agent-skills/blob/8bfcc1f9916f2eea55494d8c1fa7f4bde867dd9e/skills/idea-refine/refinement-criteria.md) L109, L112: Keep Must small, "one job, done well"; ("Not Doing" list is mandatory)
 - addy [skills/spec-driven-development/SKILL.md](https://github.com/addyosmani/agent-skills/blob/8bfcc1f9916f2eea55494d8c1fa7f4bde867dd9e/skills/spec-driven-development/SKILL.md) L156-168: NFRs need an objective pass/fail condition and a verification method; a number when the need is about an amount (review fix A6)
@@ -49,7 +85,11 @@ The rules, skills and agents in this kit were written for agent-kit. They paraph
 - superpowers [skills/brainstorming/builder-check-prompt.md](https://github.com/obra/superpowers/blob/2ce8aa15d05bd57213e6f746f953aafb7ded7a8b/skills/brainstorming/builder-check-prompt.md) L7-20: Builder check, read as a builder who cannot ask
 - superpowers [skills/writing-plans/SKILL.md](https://github.com/obra/superpowers/blob/2ce8aa15d05bd57213e6f746f953aafb7ded7a8b/skills/writing-plans/SKILL.md) L167: Traceability table, every REQ covered
 
-### skills/design-ux/SKILL.md
+### skills/design-solution/SKILL.md
+
+Merged on 2026-11-01 from the former `design-ux`, `design-architecture`, `design-technical` and `validate-feasibility`. The 2026-11-01 minimal rewrite kept only a subset of the ideas below: the ones a strong model would get wrong without them.
+
+From the former `design-ux`:
 
 - addy [references/accessibility-checklist.md](https://github.com/addyosmani/agent-skills/blob/8bfcc1f9916f2eea55494d8c1fa7f4bde867dd9e/references/accessibility-checklist.md) L15-30, L24-30, L33-38, L52: Buttons say the action; specific error messages; Keyboard, focus on dialogs, labels, announcements; Contrast 4.5:1 / 3:1, not color alone, 200% text; 44x44 on touch screens
 - addy [skills/frontend-ui-engineering/SKILL.md](https://github.com/addyosmani/agent-skills/blob/8bfcc1f9916f2eea55494d8c1fa7f4bde867dd9e/skills/frontend-ui-engineering/SKILL.md) L124, L139, L337: Screen job, one primary action, required states; State list incl. permission; No lorem ipsum, real text shows length problems
@@ -64,7 +104,7 @@ The rules, skills and agents in this kit were written for agent-kit. They paraph
 - superpowers [skills/writing-plans/SKILL.md](https://github.com/obra/superpowers/blob/2ce8aa15d05bd57213e6f746f953aafb7ded7a8b/skills/writing-plans/SKILL.md) L167: Two-way coverage check (every FR on a screen)
 - Standards: [WCAG 2.2, 2.5.8 Target Size (Minimum)](https://www.w3.org/TR/WCAG22/#target-size-minimum), [WCAG 2.2, 1.4.10 Reflow](https://www.w3.org/TR/WCAG22/#reflow), [WCAG 2.2 conformance](https://www.w3.org/TR/WCAG22/#cc1)
 
-### skills/design-architecture/SKILL.md
+From the former `design-architecture`:
 
 - addy [skills/api-and-interface-design/SKILL.md](https://github.com/addyosmani/agent-skills/blob/8bfcc1f9916f2eea55494d8c1fa7f4bde867dd9e/skills/api-and-interface-design/SKILL.md) L118: Third-party responses are untrusted
 - addy [skills/documentation-and-adrs/SKILL.md](https://github.com/addyosmani/agent-skills/blob/8bfcc1f9916f2eea55494d8c1fa7f4bde867dd9e/skills/documentation-and-adrs/SKILL.md) L23-34, L27-34, L46-91, L93-100: Always ADR for stack, data store, auth, hosting; ADR body (status, context, decision, alternatives with why not, consequences incl. risks); Keep numbers, mark "Superseded by", never delete
@@ -81,7 +121,7 @@ The rules, skills and agents in this kit were written for agent-kit. They paraph
 - mattpocock [skills/engineering/domain-modeling/ADR-FORMAT.md](https://github.com/mattpocock/skills/blob/a496f5513d4a4cf889bc48e189e579f4b0bdf6aa/skills/engineering/domain-modeling/ADR-FORMAT.md) L29-37: Write an ADR only when hard to reverse + surprising + real trade-off
 - superpowers [skills/brainstorming/SKILL.md](https://github.com/obra/superpowers/blob/2ce8aa15d05bd57213e6f746f953aafb7ded7a8b/skills/brainstorming/SKILL.md) L139-148: 2–3 real options, drop weak ones, pick one with a reason
 
-### skills/design-technical/SKILL.md
+From the former `design-technical`:
 
 - addy [references/security-checklist.md](https://github.com/addyosmani/agent-skills/blob/8bfcc1f9916f2eea55494d8c1fa7f4bde867dd9e/references/security-checklist.md) L46-52: Every protected action checks identity and ownership
 - addy [references/testing-patterns.md](https://github.com/addyosmani/agent-skills/blob/8bfcc1f9916f2eea55494d8c1fa7f4bde867dd9e/references/testing-patterns.md) L114-124: Mock only at the edges
@@ -95,7 +135,7 @@ The rules, skills and agents in this kit were written for agent-kit. They paraph
 - ecc [skills/error-handling/SKILL.md](https://github.com/affaan-m/ecc/blob/b38be6a7f6350964d59328b52f0624e1d1d552d1/skills/error-handling/SKILL.md) L24, L26, L376: User message vs internal detail; no stack traces; Retry only retriable errors; Errors are part of the contract
 - Standards: [RFC 6585, section 4](https://www.rfc-editor.org/rfc/rfc6585.html#section-4), [RFC 9110, section 9.2.2](https://www.rfc-editor.org/rfc/rfc9110.html#section-9.2.2)
 
-### skills/validate-feasibility/SKILL.md
+From the former `validate-feasibility`:
 
 - addy [skills/constraint-driven-development/SKILL.md](https://github.com/addyosmani/agent-skills/blob/8bfcc1f9916f2eea55494d8c1fa7f4bde867dd9e/skills/constraint-driven-development/SKILL.md) L123-124: NFR number with no way to measure = a wish
 - addy [skills/doubt-driven-development/SKILL.md](https://github.com/addyosmani/agent-skills/blob/8bfcc1f9916f2eea55494d8c1fa7f4bde867dd9e/skills/doubt-driven-development/SKILL.md) L10, L28, L47, L91-102: List non-obvious claims ("this scales", "this is safe"); Look for unstated assumptions, hidden coupling, contract gaps; Single agent doubting its own inputs; A claim with no evidence is an unknown
@@ -118,15 +158,6 @@ The rules, skills and agents in this kit were written for agent-kit. They paraph
 - mattpocock [skills/engineering/to-tickets/SKILL.md](https://github.com/mattpocock/skills/blob/a496f5513d4a4cf889bc48e189e579f4b0bdf6aa/skills/engineering/to-tickets/SKILL.md) L29-36, L33, L38, L62, L105: Thin complete path, demoable or checkable; Fits one fresh agent session; Number in build order; depend only on lower numbers (and Rule); Scope: "likely files" (paths go stale)
 - superpowers [docs/superpowers/specs/2026-01-22-document-review-system-design.md](https://github.com/obra/superpowers/blob/2ce8aa15d05bd57213e6f746f953aafb7ded7a8b/docs/superpowers/specs/2026-01-22-document-review-system-design.md) L51-57: No work the specs do not ask for
 - superpowers [skills/writing-plans/SKILL.md](https://github.com/obra/superpowers/blob/2ce8aa15d05bd57213e6f746f953aafb7ded7a8b/skills/writing-plans/SKILL.md) L10, L34-41, L36-41, L77-87, L102-106, L157-161, L163-177: Intro: builder has never seen the specs; write what you decided; Exception: fold setup into the first slice; Split only where a reviewer could reject one task and accept its neighbour; Scope: exact names for what later tasks use; Self-review: coverage, empty lines, names, fix inline; Empty lines list ("TBD", "handle edge cases", "add validation"); Edge cases: 3-5 failures the spec implies; silence is not permission
-
-### skills/assess-readiness/SKILL.md
-
-- addy [skills/planning-and-task-breakdown/SKILL.md](https://github.com/addyosmani/agent-skills/blob/8bfcc1f9916f2eea55494d8c1fa7f4bde867dd9e/skills/planning-and-task-breakdown/SKILL.md) L242-253: Tasks: sections, testable criteria, size, dependencies
-- ecc [commands/prp-plan.md](https://github.com/affaan-m/ecc/blob/b38be6a7f6350964d59328b52f0624e1d1d552d1/commands/prp-plan.md) L411, L470-474, L492-493: Intro: can a fresh agent build it without asking anyone; Cold start check on the riskiest tasks
-- ecc [skills/production-audit/SKILL.md](https://github.com/affaan-m/ecc/blob/b38be6a7f6350964d59328b52f0624e1d1d552d1/skills/production-audit/SKILL.md) L133-142, L144-161, L197: Fixed severities for specific failures; Verdict first in one sentence, then blockers and evidence; Every PASS/FAIL names evidence; a check not run is a FAIL
-- superpowers [docs/superpowers/specs/2026-01-22-document-review-system-design.md](https://github.com/obra/superpowers/blob/2ce8aa15d05bd57213e6f746f953aafb7ded7a8b/docs/superpowers/specs/2026-01-22-document-review-system-design.md) L18-26, L24, L51-57: Placeholders (TODO, TBD, empty sections); Trace chain (REQ -> FR -> task); Consistency of names and values across docs/05 and tasks
-- superpowers [skills/verification-before-completion/SKILL.md](https://github.com/obra/superpowers/blob/2ce8aa15d05bd57213e6f746f953aafb7ded7a8b/skills/verification-before-completion/SKILL.md) L14-36, L20, L38-48, L40-48, L55, L94-98: One line per check, with evidence; recount yourself; Do not trust the coverage table or an earlier PASS; Every PASS/FAIL names evidence; a check not run is a FAIL; Do not trust earlier reports
-- superpowers [skills/writing-plans/SKILL.md](https://github.com/obra/superpowers/blob/2ce8aa15d05bd57213e6f746f953aafb7ded7a8b/skills/writing-plans/SKILL.md) L171, L194: Consistency of names and values across docs/05 and tasks; Open decisions: options plus a recommendation with a reason
 
 ### skills/repair-specs/SKILL.md
 
@@ -168,18 +199,6 @@ The rules, skills and agents in this kit were written for agent-kit. They paraph
 - superpowers [skills/systematic-debugging/root-cause-tracing.md](https://github.com/obra/superpowers/blob/2ce8aa15d05bd57213e6f746f953aafb7ded7a8b/skills/systematic-debugging/root-cause-tracing.md) L5-7: Trace the bad value back to its source
 - superpowers [skills/verification-before-completion/SKILL.md](https://github.com/obra/superpowers/blob/2ce8aa15d05bd57213e6f746f953aafb7ded7a8b/skills/verification-before-completion/SKILL.md) L38-48
 
-### skills/refactor/SKILL.md
-
-- addy [docs/adoption-guide.md](https://github.com/addyosmani/agent-skills/blob/8bfcc1f9916f2eea55494d8c1fa7f4bde867dd9e/docs/adoption-guide.md) L90, L111: Characterization test = pin what the code does now, right or wrong; "no safety net, no refactor"
-- addy [skills/code-review-and-quality/SKILL.md](https://github.com/addyosmani/agent-skills/blob/8bfcc1f9916f2eea55494d8c1fa7f4bde867dd9e/skills/code-review-and-quality/SKILL.md) L60: Reduce complexity, don't just move it
-- addy [skills/code-simplification/SKILL.md](https://github.com/addyosmani/agent-skills/blob/8bfcc1f9916f2eea55494d8c1fa7f4bde867dd9e/skills/code-simplification/SKILL.md) L14-28, L30-41, L32-42, L44-59, L101-103, L107-121, L123-155, L157-169, L157-159, L171, L173-185, L309-317, L319-331: When to use: works but hard to change; not when you don't understand it or it will be rewritten; Name goal and scope; prefer recently changed code; Understand before touching (callers, edge cases, why, git blame); Deep nesting → guard clauses; long function → split; One change, run tests, revert on red; Big mechanical edits → use a tool; Compare before/after; revert if not better; Behaviour stays exactly the same; Tests pass without changing what they expect; Never mix refactoring with features or fixes; Follow project conventions; Do not remove error handling
-- addy [skills/deprecation-and-migration/SKILL.md](https://github.com/addyosmani/agent-skills/blob/8bfcc1f9916f2eea55494d8c1fa7f4bde867dd9e/skills/deprecation-and-migration/SKILL.md) L94-104, L108-115, L191: Parallel change for shared interfaces
-- ecc [agents/refactor-cleaner.md](https://github.com/affaan-m/ecc/blob/b38be6a7f6350964d59328b52f0624e1d1d552d1/agents/refactor-cleaner.md) L43-47, L82-87: When to use: not without tests; Grep every reference, including dynamic ones
-- ecc [skills/orch-refine-code/SKILL.md](https://github.com/affaan-m/ecc/blob/b38be6a7f6350964d59328b52f0624e1d1d552d1/skills/orch-refine-code/SKILL.md) L13-18, L25-27: When to use: same behaviour, better structure; behaviour change = wrong skill; Green before you start; add characterization tests if thin
-- mattpocock [skills/engineering/code-review/SKILL.md](https://github.com/mattpocock/skills/blob/a496f5513d4a4cf889bc48e189e579f4b0bdf6aa/skills/engineering/code-review/SKILL.md) L43-56: Named moves (duplicated code, mysterious name, data clumps, repeated switches, middle man, speculative generality, feature envy)
-- mattpocock [skills/engineering/codebase-design/SKILL.md](https://github.com/mattpocock/skills/blob/a496f5513d4a4cf889bc48e189e579f4b0bdf6aa/skills/engineering/codebase-design/SKILL.md) L63: Deletion test
-- mattpocock [skills/engineering/to-tickets/SKILL.md](https://github.com/mattpocock/skills/blob/a496f5513d4a4cf889bc48e189e579f4b0bdf6aa/skills/engineering/to-tickets/SKILL.md) L23: When to use: "make the change easy, then make the easy change"
-
 ### skills/optimize/SKILL.md
 
 - addy [references/performance-checklist.md](https://github.com/addyosmani/agent-skills/blob/8bfcc1f9916f2eea55494d8c1fa7f4bde867dd9e/references/performance-checklist.md) L222-239: Blocking I/O on a hot path
@@ -187,14 +206,18 @@ The rules, skills and agents in this kit were written for agent-kit. They paraph
 - ecc [agents/performance-optimizer.md](https://github.com/affaan-m/ecc/blob/b38be6a7f6350964d59328b52f0624e1d1d552d1/agents/performance-optimizer.md) L69-80: Repeated work in loops, list search → map
 - ecc [skills/benchmark-optimization-loop/SKILL.md](https://github.com/affaan-m/ecc/blob/b38be6a7f6350964d59328b52f0624e1d1d552d1/skills/benchmark-optimization-loop/SKILL.md) L15-26, L15-23, L28-37, L50-61, L60-61, L63-71: Frame (operation, metric, correctness gate, budget); Find the bottleneck from evidence; Repeat; stop at target, budget, or noise; Report exact commands and numbers; "best measured", not "optimal"
 
-### agents/product-reviewer.md
+### agents/spec-reviewer.md
+
+Merged on 2026-11-01 from the former `product-reviewer`, `architecture-reviewer` and `qa-reviewer`, plus the cold-start task check of the former `assess-readiness` skill (its other checks are now code: `lib/check.sh`). The 2026-11-01 minimal rewrite kept only a subset of the ideas below: the ones a strong model would get wrong without them.
+
+From the former `product-reviewer`:
 
 - addy [skills/doubt-driven-development/SKILL.md](https://github.com/addyosmani/agent-skills/blob/8bfcc1f9916f2eea55494d8c1fa7f4bde867dd9e/skills/doubt-driven-development/SKILL.md) L89-102, L101-102: Intro: find what is wrong, not approve; (appended): no invented findings; empty list is valid
 - ecc [skills/intent-driven-development/SKILL.md](https://github.com/affaan-m/ecc/blob/b38be6a7f6350964d59328b52f0624e1d1d552d1/skills/intent-driven-development/SKILL.md) L65-70, L121-128, L126-127, L188-189, L191-205, L320-321: Guesses as facts, business rules with no source; Criteria two people could judge differently; vague words; Banned vague words; "Two people would judge it the same way"; Edge case kinds; Contradictions
 - superpowers [skills/brainstorming/builder-check-prompt.md](https://github.com/obra/superpowers/blob/2ce8aa15d05bd57213e6f746f953aafb7ded7a8b/skills/brainstorming/builder-check-prompt.md) L14-17, L14-20, L19-20: Gaps where a builder must guess and a wrong guess matters; (appended): skip wording nitpicks
 - superpowers [skills/subagent-driven-development/task-reviewer-prompt.md](https://github.com/obra/superpowers/blob/2ce8aa15d05bd57213e6f746f953aafb7ded7a8b/skills/subagent-driven-development/task-reviewer-prompt.md) L64-71, L68-71, L96-103, L100-101, L102-103, L145-152: Intro: author's assumptions and reasons are claims; Missing / Extra / Misread (brief -> docs/01); Big PRD feature nobody asked for; How to grade (critical / major / minor examples); How to grade: "PRD solves a different problem" is critical; (appended): a stated reason never lowers severity
 
-### agents/architecture-reviewer.md
+From the former `architecture-reviewer`:
 
 - addy [agents/code-reviewer.md](https://github.com/addyosmani/agent-skills/blob/8bfcc1f9916f2eea55494d8c1fa7f4bde867dd9e/agents/code-reviewer.md) L26-31: Dependencies one way, no cycles
 - addy [agents/security-auditor.md](https://github.com/addyosmani/agent-skills/blob/8bfcc1f9916f2eea55494d8c1fa7f4bde867dd9e/agents/security-auditor.md) L19-46, L48-53, L99, L105, L106: Trust boundaries with threats and controls; Real, exploitable gaps, not theory; Secrets, sessions, login rate limit, webhook signatures, SSRF; LLM output untrusted, permissions in code, limits; Never recommend weakening a security control
@@ -215,7 +238,7 @@ The rules, skills and agents in this kit were written for agent-kit. They paraph
 - mattpocock [skills/engineering/improve-codebase-architecture/SKILL.md](https://github.com/mattpocock/skills/blob/a496f5513d4a4cf889bc48e189e579f4b0bdf6aa/skills/engineering/improve-codebase-architecture/SKILL.md) L14, L56: Do not reopen an ADR unless it fails a requirement
 - superpowers [skills/brainstorming/builder-check-prompt.md](https://github.com/obra/superpowers/blob/2ce8aa15d05bd57213e6f746f953aafb7ded7a8b/skills/brainstorming/builder-check-prompt.md) L7-20: Intro: read as a builder who cannot ask; report guesses that matter; skip nitpicks
 
-### agents/qa-reviewer.md
+From the former `qa-reviewer`:
 
 - addy [agents/test-engineer.md](https://github.com/addyosmani/agent-skills/blob/8bfcc1f9916f2eea55494d8c1fa7f4bde867dd9e/agents/test-engineer.md) L20-28, L47-57, L81-89: Edge case list (empty, boundary, wrong type, repeat/concurrent, network, permission, large data); Test levels: unit / integration / E2E for key journeys; Fake only outside systems
 - addy [references/accessibility-checklist.md](https://github.com/addyosmani/agent-skills/blob/8bfcc1f9916f2eea55494d8c1fa7f4bde867dd9e/references/accessibility-checklist.md) L15-53, L40-46: Error messages say what went wrong and how to recover; Accessibility items that can be tested (keyboard, labels, focus, contrast)
@@ -231,6 +254,15 @@ The rules, skills and agents in this kit were written for agent-kit. They paraph
 - superpowers [docs/superpowers/specs/2026-01-22-document-review-system-design.md](https://github.com/obra/superpowers/blob/2ce8aa15d05bd57213e6f746f953aafb7ded7a8b/docs/superpowers/specs/2026-01-22-document-review-system-design.md) L24: Values agree across docs
 - superpowers [skills/test-driven-development/writing-good-tests.md](https://github.com/obra/superpowers/blob/2ce8aa15d05bd57213e6f746f953aafb7ded7a8b/skills/test-driven-development/writing-good-tests.md) L20-30: Name the break; expected values written out, not "works correctly"
 - superpowers [skills/writing-plans/SKILL.md](https://github.com/obra/superpowers/blob/2ce8aa15d05bd57213e6f746f953aafb7ded7a8b/skills/writing-plans/SKILL.md) L77-87, L157-161: Criteria have real values; vague words are findings; "Saying nothing about an input does not mean it may break"
+
+From the former `assess-readiness`:
+
+- addy [skills/planning-and-task-breakdown/SKILL.md](https://github.com/addyosmani/agent-skills/blob/8bfcc1f9916f2eea55494d8c1fa7f4bde867dd9e/skills/planning-and-task-breakdown/SKILL.md) L242-253: Tasks: sections, testable criteria, size, dependencies
+- ecc [commands/prp-plan.md](https://github.com/affaan-m/ecc/blob/b38be6a7f6350964d59328b52f0624e1d1d552d1/commands/prp-plan.md) L411, L470-474, L492-493: Intro: can a fresh agent build it without asking anyone; Cold start check on the riskiest tasks
+- ecc [skills/production-audit/SKILL.md](https://github.com/affaan-m/ecc/blob/b38be6a7f6350964d59328b52f0624e1d1d552d1/skills/production-audit/SKILL.md) L133-142, L144-161, L197: Fixed severities for specific failures; Verdict first in one sentence, then blockers and evidence; Every PASS/FAIL names evidence; a check not run is a FAIL
+- superpowers [docs/superpowers/specs/2026-01-22-document-review-system-design.md](https://github.com/obra/superpowers/blob/2ce8aa15d05bd57213e6f746f953aafb7ded7a8b/docs/superpowers/specs/2026-01-22-document-review-system-design.md) L18-26, L24, L51-57: Placeholders (TODO, TBD, empty sections); Trace chain (REQ -> FR -> task); Consistency of names and values across docs/05 and tasks
+- superpowers [skills/verification-before-completion/SKILL.md](https://github.com/obra/superpowers/blob/2ce8aa15d05bd57213e6f746f953aafb7ded7a8b/skills/verification-before-completion/SKILL.md) L14-36, L20, L38-48, L40-48, L55, L94-98: One line per check, with evidence; recount yourself; Do not trust the coverage table or an earlier PASS; Every PASS/FAIL names evidence; a check not run is a FAIL; Do not trust earlier reports
+- superpowers [skills/writing-plans/SKILL.md](https://github.com/obra/superpowers/blob/2ce8aa15d05bd57213e6f746f953aafb7ded7a8b/skills/writing-plans/SKILL.md) L171, L194: Consistency of names and values across docs/05 and tasks; Open decisions: options plus a recommendation with a reason
 
 ### agents/code-reviewer.md
 

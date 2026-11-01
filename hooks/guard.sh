@@ -10,7 +10,7 @@
 #   - block shell commands that touch those folders or run 'agent-kit approve'
 # During a runner stage (the runner sets AGENT_KIT_STAGE and AGENT_KIT_WORKSPACE_DIR):
 #   - allow edits only under AGENT_KIT_WRITE_ALLOW
-#     (paths relative to the workspace, separated by ":", e.g. "docs/07-plan.md:tasks/")
+#     (paths relative to the workspace, separated by ":", e.g. "docs/03-plan.md:tasks/")
 #
 # This is a safety net, not a wall. The runner and the gate check results too.
 set -uo pipefail

@@ -1,7 +1,7 @@
 # Use cases
 
 Install agent-kit once, globally. Then use it in any project: new or existing,
-small or big, solo or company. This page shows, for five common cases, what the
+small or big, solo or company. This page shows, for six common cases, what the
 folders look like, what to run, and what to write.
 
 ## One-time setup
@@ -18,7 +18,7 @@ What this gives every project on your machine:
 | Where | What |
 |-------|------|
 | `~/.claude/skills/`, `~/.agents/skills/` | all skills (Claude Code, Codex) |
-| `~/.claude/agents/`, `~/.codex/agents/` | the reviewer agents and `code-reviewer` |
+| `~/.claude/agents/`, `~/.codex/agents/` | `spec-reviewer` and `code-reviewer` |
 | `~/.local/bin/agent-kit` | the runner command |
 
 Your settings files are not changed. These are links back to the kit folder, so
@@ -46,18 +46,14 @@ Input and output of every step: [README: Use](README.md#use-one-step-at-a-time).
 
 ```bash
 # A. specs: one command per document
-agent-kit spec discover               # brief            -> docs/01-requirements.md
-agent-kit spec define-product         # + docs/01        -> docs/02-prd.md
-agent-kit spec design-ux              # + docs/02        -> docs/03-ux-design.md
-agent-kit spec design-architecture    # + docs/03        -> docs/04-architecture.md
-agent-kit spec design-technical       # + docs/04        -> docs/05-technical-spec.md
-agent-kit spec validate-feasibility   # + docs/05        -> docs/06-validation.md
-# B. review (exit 2 = blocking findings)
-agent-kit review                      # docs/01-06       -> .workflow/reviews/round-N/summary.json
-agent-kit repair                      # only after exit 2, then review again
-# C. plan
-agent-kit plan                        # docs/01-06       -> docs/07 + tasks/
-agent-kit readiness                   # docs + tasks     -> docs/08 (exit 2 = NOT_READY)
+agent-kit spec define-requirements    # brief            -> docs/01-requirements.md
+agent-kit spec design-solution        # + docs/01        -> docs/02-design.md
+# B. plan
+agent-kit plan                        # docs/01-02       -> docs/03-plan.md + tasks/
+# C. check (no AI, free) and review (exit 2 = problems or blocking findings)
+agent-kit check                       # docs + tasks     -> a list of problems
+agent-kit review                      # brief, docs, tasks -> .workflow/reviews/round-N/summary.json
+agent-kit repair                      # only after review exits 2, then review again
 # D. a person approves; the gate checks
 agent-kit approve                     # in your own terminal, type APPROVE
 agent-kit gate                        # exit 0 = coding may start
@@ -76,26 +72,29 @@ Once you know the steps, you can chain them in your own script: see
 | 3 | Existing project, small, solo | `specs/<feature>` | pipeline for a feature |
 | 4 | Existing project, big, company (monorepo) | `specs/<feature>`, per service | pipeline, full settings, gate in CI |
 | 5 | Small change in any project (bug, clean-up, speed) | none, no init | one skill only |
+| 6 | New feature or idea in any project, agreed by talking it through | none, no init | `plan-idea`, then `build-task` |
 
-Rule of thumb: use the pipeline when the work needs a plan (a new product, or a
-feature of a few days or more). For a change you can explain in two sentences,
-skip the pipeline and use one skill (case 5).
+Rule of thumb: use the pipeline when the work needs a reviewed, approved plan (a
+new product, a feature of several days, or a team that signs off). For a change you can explain in two sentences,
+skip the pipeline and use one skill (case 5). For a new feature or idea you want to
+talk through and agree with Claude before building, use `plan-idea` (case 6).
 
 ## The parts, in short
 
 | Part | What it does | Who starts it |
 |------|--------------|---------------|
-| `agent-kit spec <stage>`: spec skills `discover`, `define-product`, `design-ux`, `design-architecture`, `design-technical`, `validate-feasibility` | Each stage writes one of `docs/01` to `docs/06` | you, one command per stage |
-| `agent-kit review`: reviewer agents `product-reviewer`, `architecture-reviewer`, `qa-reviewer` | One review round of the specs, read only | you |
+| `agent-kit spec <stage>`: skills `define-requirements`, `design-solution` | Each stage writes one document: `docs/01-requirements.md`, `docs/02-design.md` | you, one command per stage |
+| `agent-kit plan`: skill `plan-tasks` | Writes `docs/03-plan.md` and `tasks/` | you |
+| `agent-kit check` | Checks in code, no AI: open decisions, coverage, task files | you (free; also inside `approve` and `gate`) |
+| `agent-kit review`: agent `spec-reviewer` | One review round of everything, read only | you |
 | `agent-kit repair`: skill `repair-specs` | Fixes the blocking findings of the last review | you, after `review` exits 2 |
-| `agent-kit plan`: skill `plan-tasks` | Writes `docs/07` and `tasks/` | you |
-| `agent-kit readiness`: skill `assess-readiness` | Writes `docs/08` and the READY / NOT_READY verdict | you |
 | `agent-kit approve` | You accept the specs and tasks | you, in a terminal |
 | `agent-kit gate` | Says if coding may start (exit 0 = yes) | you or CI |
-| Build skills: `build-task`, `fix-review`, `fix-bug`, `refactor`, `optimize` | Write and fix code | you, in Claude Code or Codex |
+| Skill `plan-idea` | Interviews you about a feature or idea and writes a plan you agree to; also asks you the open decisions | you, in Claude Code or Codex |
+| Build skills: `build-task`, `fix-review`, `fix-bug`, `optimize` | Write and fix code | you, in Claude Code or Codex |
 | `code-reviewer` agent | Reviews a code change, read only | you, in Claude Code or Codex |
 
-Build skills never start on their own. Call them by name: `/build-task ...` in
+Build skills and `plan-idea` never start on their own. Call them by name: `/build-task ...` in
 Claude Code, `$build-task ...` in Codex.
 
 ---
@@ -112,10 +111,10 @@ trip-splitter/
 ├── AGENTS.md              # shared rules (kit block added)
 ├── CLAUDE.md              # imports AGENTS.md
 ├── brief/requirements.md  # you write this
-├── docs/01 … 08           # written by the steps
+├── docs/01 … 03           # written by the steps
 ├── tasks/001-setup/task.md
 │   tasks/002-add-expense/task.md …
-└── .workflow/             # review results, readiness, approval, logs
+└── .workflow/             # review results, approval, logs
 ```
 
 **Run:**
@@ -123,12 +122,13 @@ trip-splitter/
 ```bash
 mkdir trip-splitter && cd trip-splitter && git init
 agent-kit init
-# write brief/requirements.md (delete the template marker line), then run
-# the steps one by one (see "The steps" above):
-agent-kit spec discover
-agent-kit spec define-product
-# ... and so on, until:
-agent-kit readiness
+# write brief/requirements.md (delete the template marker line), or let
+# /plan-idea write it with you; then run the steps one by one:
+agent-kit spec define-requirements
+agent-kit spec design-solution
+agent-kit plan
+agent-kit check
+agent-kit review
 ```
 
 **Low-cost settings** in `agent-kit.toml` (`opus` gives better specs; `sonnet` costs less):
@@ -141,9 +141,6 @@ plan = "sonnet"
 
 [limits]
 max_budget_usd = 2      # per Claude call (each step makes one; review makes one per reviewer)
-
-[review]
-agents = ["product-reviewer", "qa-reviewer"]   # add "architecture-reviewer" if it has a backend
 ```
 
 Fewer review rounds also cost less: you decide how many times to run
@@ -181,9 +178,9 @@ None.
 
 **Then:**
 
-1. Read `docs/08-readiness.md`. If it says `NOT_READY` (`readiness` exits 2),
-   answer the open decisions: add your answers to the brief and run the steps
-   again from `agent-kit spec discover`.
+1. If `check` lists open decisions (exit 2), answer them:
+   `/plan-idea answer the open decisions in docs/02-design.md` writes your answers
+   into the brief. Then run the steps again from `agent-kit spec define-requirements`.
 2. `agent-kit approve` (type `APPROVE`), then `agent-kit gate`.
 3. Build one task at a time (see [Build prompts](#build-prompts)).
 
@@ -202,7 +199,7 @@ claims-portal/
 ├── specs/
 │   ├── foundation/              # first workspace: the whole first release
 │   │   ├── brief/requirements.md
-│   │   ├── docs/01 … 08
+│   │   ├── docs/01 … 03
 │   │   ├── tasks/
 │   │   └── .workflow/
 │   ├── document-upload/         # one workspace per later feature
@@ -219,14 +216,14 @@ two features without blocking each other or causing merge conflicts in `docs/`.
 cd ~/claims-portal
 agent-kit -w specs/foundation init     # the first init also sets the default workspace
 # write specs/foundation/brief/requirements.md, then run the steps:
-agent-kit spec discover                # ... through agent-kit readiness
+agent-kit spec define-requirements     # ... through agent-kit review
 # a tech lead reads docs/ and tasks/, then:
 agent-kit approve
 
 # later, a new feature (not the default workspace, so add -w to every step):
 agent-kit -w specs/document-upload init
 # write its brief, then:
-agent-kit -w specs/document-upload spec discover   # ... through readiness
+agent-kit -w specs/document-upload spec define-requirements   # ... through review
 ```
 
 **Settings:**
@@ -242,7 +239,7 @@ max_turns = 50
 max_budget_usd = 5
 
 [review]
-agents = ["product-reviewer", "architecture-reviewer", "qa-reviewer"]
+agents = ["spec-reviewer"]
 block_on = ["critical", "major"]
 ```
 
@@ -285,7 +282,7 @@ Claimants (web, often on phones) and claims staff (desktop, internal).
 
 ## Existing code
 Built in specs/foundation: claims API (src/api/claims), claim page (src/web/claim).
-Files must go to the existing object store; see ADR-003 in specs/foundation/docs/04-architecture.md.
+Files must go to the existing object store; see ADR-003 in specs/foundation/docs/02-design.md.
 
 ## Constraints
 Release in 4 weeks, 3 developers. Files must be scanned for viruses before staff
@@ -315,7 +312,7 @@ my-shop/                      # your app, unchanged
 └── specs/
     └── gift-cards/           # the workspace
         ├── brief/requirements.md
-        ├── docs/01 … 08
+        ├── docs/01 … 03
         ├── tasks/
         └── .workflow/
 ```
@@ -327,7 +324,7 @@ cd ~/my-shop
 agent-kit -w specs/gift-cards init    # plain "agent-kit init" refuses if docs/ or tasks/ hold your files
 # write specs/gift-cards/brief/requirements.md, then run the steps.
 # The first init set this workspace as the default, so no -w is needed:
-agent-kit spec discover               # ... through agent-kit readiness
+agent-kit spec define-requirements    # ... through agent-kit review
 ```
 
 The next feature gets its own folder: `agent-kit -w specs/wishlist init`, then
@@ -366,7 +363,9 @@ Stripe docs on promotion codes: <link>
 
 The "Existing code" section matters most here. The spec stages read that code
 and design the change around it: same stack, same patterns, and current
-behavior kept safe by "Must not" checks and regression tests.
+behavior kept safe by "Must not" criteria and regression tests.
+
+Small feature? Case 6 (`plan-idea`, then `build-task`) is often enough.
 
 **Cost:** use the low-cost settings from case 1 if the feature is small.
 
@@ -406,7 +405,7 @@ also works, with workspaces like `specs/payments/refunds-v2`.
 cd ~/platform/services/payments
 agent-kit -w specs/refunds-v2 init
 # write specs/refunds-v2/brief/requirements.md, then run the steps:
-agent-kit spec discover               # ... through agent-kit readiness
+agent-kit spec define-requirements    # ... through agent-kit review
 # the feature owner approves; CI runs the gate (see case 2)
 ```
 
@@ -436,12 +435,54 @@ scripts or CI.
 | Problem | Skill | Example prompt |
 |---------|-------|----------------|
 | Something is broken | `fix-bug` | `/fix-bug Checkout returns 500 when the cart is empty. Steps: log in, empty the cart, click Pay. Error from the server log: <paste>` |
-| Code works but is hard to change | `refactor` | `/refactor src/billing/invoice.ts repeats the tax math in 3 functions. Make adding a new tax rate easy. No behavior change.` |
+| Code works but is hard to change | no kit skill: ask, or use the built-in `/simplify` | `src/billing/invoice.ts repeats the tax math in 3 functions. Make adding a new tax rate easy. No behavior change.` (the engineering rules keep tests green and expected values unchanged) |
 | It is too slow or costs too much | `optimize` | `/optimize GET /orders takes 1.8 s at p95 with 10k orders. Target: 300 ms. Measure with: npm run bench:orders` |
 | A reviewer left comments | `fix-review` | `/fix-review Fix the findings from the review above in the change on this branch.` |
 | You want a second opinion on a change | `code-reviewer` agent | `Use the code-reviewer agent to review this branch. Give it the full diff against main.` |
 
-In Codex, use `$fix-bug`, `$refactor`, and so on.
+In Codex, use `$fix-bug`, `$optimize`, and so on.
+
+---
+
+## 6. New feature or idea: talk it through first
+
+No pipeline, no init. Use it when you have a new feature, a new requirement or
+just an idea, and want to agree how to do it before any code is written.
+
+What happens: Claude reads the related code first (it never asks what the code
+already answers), then asks one question at a time, each with its recommended
+answer. It shows 2 or 3 ways to build it and recommends one; you pick. It writes
+a plan and waits for your explicit "yes", then marks the plan `Status: Agreed`.
+Nothing is built before that. You can stop the questions at any time; it then
+marks the open points as its own calls.
+
+```
+/plan-idea Users want to export their orders as CSV from the orders page. Save the plan in plans/.
+```
+
+```
+/plan-idea Idea: email users when a saved cart is 3 days old. Not sure it is worth it yet.
+```
+
+After you say yes, build from the plan, then review and fix as in
+[Build prompts](#build-prompts):
+
+```
+/build-task plans/orders-csv-export.md
+```
+
+Use the pipeline (cases 1 to 4) instead when the work needs independent reviews
+and a formal approval: a new product, a feature of several days or more, or a
+team that signs off on specs. `plan-idea` is one person agreeing a plan with Claude.
+
+More uses:
+
+- Too big for one plan? `/plan-idea ... Write it as the brief for specs/<feature>.`
+  Then run the pipeline from `agent-kit spec define-requirements`.
+- Open decisions from `check` or a review: `/plan-idea answer the open decisions in docs/02-design.md`.
+  It asks them one by one and writes your answers into the brief's `## Decisions`.
+- An agreed plan with many steps: `plan-tasks` can split it into task files
+  (`/plan-tasks plans/orders-csv-export.md`).
 
 ---
 
@@ -460,9 +501,13 @@ Use the task folder path (inside the workspace).
 
 ```
 Use the code-reviewer agent to review task specs/gift-cards/tasks/002-buy-card.
-Give it the full diff of this branch against main (git diff main...HEAD), the
-task file, and the contracts in specs/gift-cards/docs/05-technical-spec.md.
+Give it the full diff against main including work not yet committed (git diff main),
+the content of new files (git status --short lists them), the task file, and the
+contracts in specs/gift-cards/docs/02-design.md.
 ```
+
+`git diff main...HEAD` (three dots) shows commits only. Before you commit, it is
+empty, so use `git diff main` (two dots) as above.
 
 **3. Fix the findings**
 
@@ -472,8 +517,8 @@ task file, and the contracts in specs/gift-cards/docs/05-technical-spec.md.
 
 Repeat 2 and 3 until the review passes, then commit and go to the next task.
 If a skill stops with `BLOCKED` because the spec is wrong or unclear, do not let
-it guess: fix the brief or docs, then run `agent-kit review`, `agent-kit plan` and
-`agent-kit readiness` again, and approve the new baseline.
+it guess: fix the brief or docs, then run `agent-kit plan`, `agent-kit check` and
+`agent-kit review` again, and approve the new baseline.
 
 ## Optional: guard in normal sessions
 
@@ -501,7 +546,8 @@ use those names.
 
 ## Tips for writing a brief
 
-- Use your own words. Rough notes are fine; the pipeline asks the questions.
+- Use your own words. Rough notes are fine; the documents list the open questions,
+  and `/plan-idea` can ask them or help you write the brief.
 - Say who uses it, what they must be able to do, and why.
 - Give numbers instead of "fast", "secure" or "easy" when you know them.
 - Fill in "Existing code" for an existing project: name the folders and the

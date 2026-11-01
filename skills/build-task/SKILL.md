@@ -1,43 +1,40 @@
 ---
 name: build-task
-description: Build one task test-first, with verification. The task can be an agent-kit task file, an issue or ticket, or a described change.
+description: Build one task test-first, with proof for each acceptance criterion. The task can be a task file, an agreed plan, an issue or ticket, or a clear request.
 disable-model-invocation: true
 ---
 
-## When to use
+## Ground rules
 
-- One task to build: an agent-kit task file (its workspace gate passes and its Depends on tasks are done), an issue or ticket, or a clear request.
-- Not for later bugs (`fix-bug`), review findings (`fix-review`) or structure-only changes (`refactor`).
+- A fact needs a source: path:line, a quote or command output. Mark anything else as an assumption or your call.
+- Never invent names, values, APIs or results. Mark outside facts (versions, limits, prices) `unverified`.
+- A check you didn't run is "not run". A guess that would change scope, a contract or data: ask, or record it as an open decision.
+
+## When
+
+- One task: a task file (its Depends on tasks done), a plan marked `Status: Agreed`, an issue, or a clear request.
+- Not for bugs (`fix-bug`), review findings (`fix-review`) or speed (`optimize`).
 
 ## Method
 
-1. Read the whole task, then only what it points to: requirements and acceptance criteria, contracts (API spec, schema, types), decision records, designs. Agent-kit task: its PRD criteria, technical-spec contracts, ADRs and UX screens. Work from files, not memory. No acceptance criteria: write pass/fail ones from the request and list them as assumptions; ask first if a wrong guess would change a contract or what users see.
-2. Checks (test, lint, typecheck, build): find the commands in AGENTS.md, CLAUDE.md, README, build scripts or CI and note the source. Find how to run one test file. An empty or unknown command never passes. No test setup: ask before adding one.
-3. Kind: an agent-kit task states `Kind` in its Goal; otherwise a question to answer or something to make ready (account, key, scaffold) is spike/setup. Spike/setup: see below and skip steps 5–6.
-4. Run the full test suite first; if it fails, stop and report.
-5. Test list: each acceptance criterion → behaviors tested at a public interface. Name the mistake each test catches; if none, it's too weak. Criteria whose approved check is manual or config wait for step 8, not forced into tests.
-6. Per item, in order (never all tests first):
-   - RED: one small test that fails because the feature is missing, not a typo or import. Passes at once? Find why: fix a wrong test; if the behavior exists and the test is right, keep it and report what makes it pass. Never break code or test to force RED.
-   - GREEN: least code to pass. Run that file and nearby tests; on failure fix code, not test.
+1. Read the task, then only what it links: criteria, contracts, decisions, designs. Work from files, not memory. No criteria: write pass/fail ones and list them as assumptions; ask first if a wrong guess changes a contract or what users see.
+2. Find the test, lint, typecheck and build commands (AGENTS.md, CLAUDE.md, README, build scripts, CI) and how to run one test file. No test setup: ask before adding one.
+3. Run the tests for the area you'll touch. Record failures that exist before you start; stop only if they touch the task.
+4. Per criterion, one at a time:
+   - RED: one small test at a public interface that fails because the behavior is missing, not a typo or import. Passes at once: find out why; never break code to force red.
+   - GREEN: least code to pass. On failure fix the code, not the test.
    - CLEAN: tidy only while green.
-7. Use the contract's names, fields, types, codes and error shapes exactly; with no written contract, match the existing code. Unspecified small detail: simplest fit, listed under Decisions. Task vs contract conflict, or a choice that changes a contract or decision record: stop BLOCKED with both quotes.
-8. Run every check and the full suite; read output and exit codes. Do and record the manual/config checks. Match each criterion to its proof: RED→GREEN test, existing passing test (with why), or approved manual/config check.
-9. Self-review the diff: every line traces to the task; nothing outside its scope without reason; no debug prints, commented code or skipped tests; tests check real behavior; no new warnings.
-10. Report in your output: DONE, DONE_WITH_CONCERNS or BLOCKED; files changed; each requirement and criterion with its proof; one-line RED and GREEN evidence; each check's result and command source; checks not run and why; decisions; things noticed but untouched.
-
-Spike/setup tasks answer a question or make something ready (account, key, scaffold). Within the time box, deliver the named evidence and a pass/fail answer; no feature code or invented RED. If the answer means the agreed design must change (contract, decision record, scope), stop BLOCKED with evidence; don't switch to the fallback yourself.
+   Code written before its test: break it on purpose, see the test go red, restore it.
+5. Use the contract's names, fields, types and errors exactly; no contract: match the existing code. Task vs contract conflict, or a choice that changes a contract or decision record: stop BLOCKED with both quotes.
+6. Spike or setup task: deliver the named evidence and a pass/fail answer within the time box; no feature code. An answer that changes the design: stop BLOCKED with the evidence.
+7. Run every check and the full suite; read output and exit codes. Read your diff: every line traces to the task; no debug prints, skipped tests or new warnings.
+8. Report: DONE, DONE_WITH_CONCERNS or BLOCKED; files changed; each criterion with its proof (test name or manual check); checks run with command source and result; checks not run and why; decisions you made; problems noticed but untouched.
 
 ## Rules
 
-- No new or changed behavior without a failing test first; delete code written before its test. Exceptions, named in the report: config, generated code, behavior-free wiring, manual-check criteria, spike/setup deliverables.
-- Build only the task; note other problems.
 - Never skip, weaken or delete a test to get green.
-- Never edit the task or the specs it comes from. In an agent-kit workspace, the brief, spec documents and task files are approved and hashed.
-- Stop BLOCKED instead of guessing: an architecture choice nothing in the project decides, an unfinished dependency, or reading without getting clearer.
-- Report failing tests you didn't cause, by name.
+- Build only the task; never edit the task or its specs.
 
 ## Done when
 
-- Every acceptance criterion has a proof; every check passed after your last change or is reported not run.
-- Full suite passes with clean output; the diff stays in scope or extras are explained.
-- The task and its specs are unchanged.
+- Every criterion has a proof; every check passed after your last change or is reported not run.

@@ -39,12 +39,12 @@ stage_exists() {
 
 stage_names() { printf '%s\n' "$AK_SPEC_STAGES" | cut -d: -f1 | paste -sd ' ' -; }
 
-# The step after STAGE: the next stage, or the review after the last one.
+# The step after STAGE: the next stage, or the plan after the last one.
 next_spec_step() {
   local e found=0
   for e in $AK_SPEC_STAGES; do
     if [ "$found" -eq 1 ]; then printf 'spec %s\n' "${e%%:*}"; return 0; fi
     [ "${e%%:*}" = "$1" ] && found=1
   done
-  printf 'review\n'
+  printf 'plan\n'
 }

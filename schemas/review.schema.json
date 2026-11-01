@@ -18,7 +18,7 @@
         "additionalProperties": false,
         "properties": {
           "severity": { "type": "string", "enum": ["critical", "major", "minor"] },
-          "document": { "type": "string", "description": "Path of the document, e.g. docs/05-technical-spec.md" },
+          "document": { "type": "string", "description": "Path of the document, e.g. docs/02-design.md" },
           "section": { "type": "string" },
           "issue": { "type": "string" },
           "evidence": { "type": "string", "description": "Quote or pointer that shows the problem." },

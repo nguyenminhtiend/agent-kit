@@ -62,7 +62,7 @@ Keep agent-kit apart from them: run again with --workspace and a new folder (e.g
   local brief="$ws/$AK_BRIEF" flag=""
   [ "$ws" = . ] && brief="$AK_BRIEF"
   load_config && [ "$(AGENT_KIT_WORKSPACE= workspace_rel)" = "$ws" ] || flag=" --workspace $ws"
-  info "next: fill in $brief (and agent-kit.toml), then run 'agent-kit$flag spec discover'"
+  info "next: fill in $brief (and agent-kit.toml), then run 'agent-kit$flag spec define-requirements'"
 }
 
 # Files in WS/docs or WS/tasks that the pipeline would not write (at most 5).

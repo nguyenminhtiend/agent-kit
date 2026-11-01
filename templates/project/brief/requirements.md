@@ -32,3 +32,8 @@ What you will not build now.
 ## Links
 
 Design files, APIs, tickets, rule pages, examples.
+
+## Decisions
+
+Answers to open decisions from the documents, one per line:
+`DEC-001: <answer> (<date>)`. Leave empty at first.

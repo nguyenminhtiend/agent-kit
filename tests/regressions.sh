@@ -15,7 +15,7 @@ for alias in state-alias.md state-chain.md future-alias.md state-dir/review.json
 done
 check_rc "stage cannot follow an allowed document into state" 2 guard Edit "{\"file_path\":\"$GP/docs/state-alias.md\"}" spec docs/state-alias.md
 check_rc "guard blocks apply_patch aliases" 2 guard apply_patch '{"command":"*** Begin Patch\n*** Update File: docs/state-chain.md\n@@\n-a\n+b\n*** End Patch"}'
-check_rc "single-file allow does not allow a suffix" 2 guard Write "{\"file_path\":\"$GP/docs/02-prd.md.backup\"}" spec docs/02-prd.md
+check_rc "single-file allow does not allow a suffix" 2 guard Write "{\"file_path\":\"$GP/docs/02-design.md.backup\"}" spec docs/02-design.md
 ln -s "$GP/src" "$GP/.workflow/state/escape"
 check_rc "guard blocks paths leaving a protected directory via a symlink" 2 guard Write "{\"file_path\":\"$GP/.workflow/state/escape/app.ts\"}"
 check_rc "directory allow still permits nested files" 0 guard Write "{\"file_path\":\"$GP/tasks/001-setup/task.md\"}" plan tasks/
@@ -33,8 +33,9 @@ git init -q "$WORK/monorepo"
 printf '# My project rules\nKeep this custom instruction.\n' > "$RP/AGENTS.md"
 ri() { clean_env HOME="$WORK/codex-home" "$KIT/install.sh" --target codex --scope project --project "$RP" "$@"; }
 check "codex-only install" ri
-check "codex-only runtime contains skills" test -s "$RP/.agent-kit/skills/discover/SKILL.md"
-check "codex-only runtime contains reviewer instructions" test -s "$RP/.agent-kit/agents/qa-reviewer.md"
+check "codex-only runtime contains skills" test -s "$RP/.agent-kit/skills/define-requirements/SKILL.md"
+check "codex-only runtime contains reviewer instructions" test -s "$RP/.agent-kit/agents/spec-reviewer.md"
+check "codex-only runtime has no old skills" test ! -e "$RP/.agent-kit/skills/discover"
 check "codex-only install does not require a Claude integration" test ! -e "$RP/.claude"
 check "existing AGENTS keeps user content" grep -q 'Keep this custom instruction' "$RP/AGENTS.md"
 check "existing AGENTS receives the gate rule" grep -q 'agent-kit gate' "$RP/AGENTS.md"
@@ -74,24 +75,25 @@ rk() {
     FAKE_STATE_DIR="$WORK/regression-state" "$@")
 }
 printf '# Brief\nBuild a small todo app.\n' > "$RP/brief/requirements.md"
-printf '\nBUNDLED_DISCOVERY_INSTRUCTIONS\n' >> "$RP/.agent-kit/skills/discover/SKILL.md"
-rk_steps() { rk env FAKE_EXPECT_SKILL=discover FAKE_EXPECT_TEXT=BUNDLED_DISCOVERY_INSTRUCTIONS .agent-kit/bin/agent-kit "$@"; }
+printf '\nBUNDLED_REQUIREMENTS_INSTRUCTIONS\n' >> "$RP/.agent-kit/skills/define-requirements/SKILL.md"
+rk_steps() { rk env FAKE_EXPECT_SKILL=define-requirements FAKE_EXPECT_TEXT=BUNDLED_REQUIREMENTS_INSTRUCTIONS .agent-kit/bin/agent-kit "$@"; }
 check "codex-only steps use bundled skill and agent instructions" run_steps rk_steps
 
 before_approval_gate() {
-  (cd "$RP" && source "$KIT/lib/common.sh" && source "$KIT/lib/gate.sh" && gate_checks before-approval)
+  (cd "$RP" && source "$KIT/lib/common.sh" && source "$KIT/lib/check.sh" && source "$KIT/lib/gate.sh" &&
+    gate_checks before-approval)
 }
 hash_baseline() { (cd "$RP" && source "$KIT/lib/common.sh" && baseline_hash); }
 check "regular baseline is ready before approval" before_approval_gate
 
 echo "== symlink baselines"
-mv "$RP/docs/02-prd.md" "$WORK/real-prd.md"
-ln -s "$WORK/real-prd.md" "$RP/docs/02-prd.md"
+mv "$RP/docs/02-design.md" "$WORK/real-design.md"
+ln -s "$WORK/real-design.md" "$RP/docs/02-design.md"
 check_fails "hash rejects a symlinked document" hash_baseline
 check_fails "review refuses a symlinked baseline" rk .agent-kit/bin/agent-kit review
 check_fails "approval checks refuse a symlinked baseline" before_approval_gate
-rm "$RP/docs/02-prd.md"
-mv "$WORK/real-prd.md" "$RP/docs/02-prd.md"
+rm "$RP/docs/02-design.md"
+mv "$WORK/real-design.md" "$RP/docs/02-design.md"
 mv "$RP/tasks" "$WORK/real-tasks"
 ln -s "$WORK/real-tasks" "$RP/tasks"
 check_fails "hash rejects a symlinked baseline directory" hash_baseline
@@ -102,29 +104,21 @@ check_fails "hash rejects a dangling symlink" hash_baseline
 rm "$RP/docs/dangling.md"
 check "regular baseline still passes after removing aliases" before_approval_gate
 
-echo "== readiness consistency"
-cp "$RP/.workflow/state/readiness.json" "$WORK/ready-state.json"
-jq '.decisions = [{id:"D-1",question:"Which auth provider?",recommendation:"Choose one"}]' "$WORK/ready-state.json" > "$RP/.workflow/state/readiness.json"
-check_fails "gate rejects READY with open decisions and a zero count" before_approval_gate
-check_fails "runner rejects contradictory readiness output" rk env \
-  FAKE_READINESS_RESULT='{"status":"READY","critical":0,"major":0,"unresolved_decisions":0,"summary":"Contradictory","decisions":[{"id":"D-1","question":"Which auth provider?","recommendation":"Choose one"}]}' \
-  .agent-kit/bin/agent-kit readiness
-check "invalid readiness does not leave a saved verdict" test ! -e "$RP/.workflow/state/readiness.json"
-check_rc "NOT_READY is saved and exits 2" 2 rk env \
-  FAKE_READINESS_RESULT='{"status":"NOT_READY","critical":0,"major":0,"unresolved_decisions":1,"summary":"Choose auth first","decisions":[{"id":"D-1","question":"Which auth provider?","recommendation":"Choose one"}]}' \
-  .agent-kit/bin/agent-kit readiness
-check "the NOT_READY verdict is kept" jq -e '.status == "NOT_READY"' "$RP/.workflow/state/readiness.json"
-check_fails "open decisions block approval" before_approval_gate
-check "readiness can be reassessed after resolving decisions" rk .agent-kit/bin/agent-kit readiness
+echo "== open decisions block approval"
+cp "$RP/docs/02-design.md" "$WORK/design-before-decision.md"
+printf '\n## Open decisions\n\n### DEC-001: Which auth provider?\n\nRecommendation: email links.\n' >> "$RP/docs/02-design.md"
+check_fails "an open decision blocks approval checks" before_approval_gate
+cp "$WORK/design-before-decision.md" "$RP/docs/02-design.md"
+check "the baseline is ready again once the decision is gone" before_approval_gate
 
 echo "== configuration validation"
 cp "$RP/agent-kit.toml" "$WORK/valid-config.toml"
 calls_before="$(wc -l < "$RK_LOG" | tr -d ' ')"
 printf '[limits\nmax_budget_usd = 2\n' > "$RP/agent-kit.toml"
-check_fails "malformed TOML stops before a stage runs" rk .agent-kit/bin/agent-kit spec discover
+check_fails "malformed TOML stops before a stage runs" rk .agent-kit/bin/agent-kit spec define-requirements
 for value in 'max_budget_usd = -1' 'max_budget_usd = "2"' 'max_turns = 0' 'max_turns = 1.5'; do
   printf '[limits]\n%s\n' "$value" > "$RP/agent-kit.toml"
-  check_fails "invalid limit: $value" rk .agent-kit/bin/agent-kit spec discover
+  check_fails "invalid limit: $value" rk .agent-kit/bin/agent-kit spec define-requirements
 done
 printf '[review]\nblock_on = ["typo"]\n' > "$RP/agent-kit.toml"
 check_fails "invalid blocking severity stops the review" rk .agent-kit/bin/agent-kit review
@@ -141,6 +135,7 @@ echo "== edits during assessment"
 stage_race() {
   local variable="$1" command="$2" readers="$3" path="$4" message="$5"
   local barrier="$WORK/$command-barrier" pid attempt count rc=0
+  rm -rf "$barrier"
   mkdir -p "$barrier"
   rk env "$variable=$barrier" .agent-kit/bin/agent-kit "$command" > "$WORK/$command-race.log" 2>&1 &
   pid=$!
@@ -161,13 +156,12 @@ stage_race() {
   wait "$pid" || rc=$?
   [ "$rc" -ne 0 ] && grep -q "$message" "$WORK/$command-race.log"
 }
-check "review rejects edits made after every reviewer read" stage_race FAKE_REVIEW_BARRIER review 3 docs/02-prd.md 'specs changed during review'
+check "review rejects edits made after the reviewer read" stage_race FAKE_REVIEW_BARRIER review 1 docs/02-design.md 'changed during review'
 check "interrupted review removes the previous PASS stamp" test ! -e "$RP/.workflow/state/review.json"
-check_fails "planning refuses an unstamped changed baseline" rk .agent-kit/bin/agent-kit plan
+check_fails "approval checks refuse an unreviewed changed baseline" before_approval_gate
 check "a stable rerun can review the changed baseline" rk .agent-kit/bin/agent-kit review
-check "readiness rejects a task edited while it is being assessed" stage_race FAKE_READINESS_BARRIER readiness 1 tasks/001-setup/task.md 'changed during readiness assessment'
-check "interrupted readiness does not leave a passing verdict" test ! -e "$RP/.workflow/state/readiness.json"
-check "stable inputs can be reassessed after a concurrent edit" rk .agent-kit/bin/agent-kit readiness
+check "a task edited during review is caught too" stage_race FAKE_REVIEW_BARRIER review 1 tasks/001-setup/task.md 'changed during review'
+check "a stable rerun reviews it again" rk .agent-kit/bin/agent-kit review
 
 echo "== guard in workspaces"
 GW="$GP/specs/a"
@@ -182,9 +176,9 @@ check_rc "normal session: a workspace's state blocked"      2 guard Write "{\"fi
 check_rc "normal session: a workspace's approvals blocked"  2 guard Edit "{\"file_path\":\"$GW/.workflow/approvals/spec-approved.json\"}"
 check_rc "bash: a workspace's state blocked"                2 guard Bash '{"command":"rm specs/a/.workflow/state/review.json"}'
 check_rc "codex: a workspace's approvals blocked"           2 guard apply_patch '{"command":"*** Begin Patch\n*** Add File: specs/a/.workflow/approvals/x.json\n+{}\n*** End Patch"}'
-check_rc "workspace stage: own document allowed"            0 guard_ws Write "{\"file_path\":\"$GW/docs/02-prd.md\"}" spec docs/02-prd.md
-check_rc "workspace stage: relative path is inside it"      0 guard_ws Write '{"file_path":"docs/02-prd.md"}' spec docs/02-prd.md
-check_rc "workspace stage: project-root docs/ blocked"      2 guard_ws Write "{\"file_path\":\"$GP/docs/02-prd.md\"}" spec docs/02-prd.md
+check_rc "workspace stage: own document allowed"            0 guard_ws Write "{\"file_path\":\"$GW/docs/02-design.md\"}" spec docs/02-design.md
+check_rc "workspace stage: relative path is inside it"      0 guard_ws Write '{"file_path":"docs/02-design.md"}' spec docs/02-design.md
+check_rc "workspace stage: project-root docs/ blocked"      2 guard_ws Write "{\"file_path\":\"$GP/docs/02-design.md\"}" spec docs/02-design.md
 check_rc "workspace stage: project code blocked"            2 guard_ws Write "{\"file_path\":\"$GP/src/app.ts\"}" spec docs/
 
 echo "== existing project with its own docs/ and tasks/"
@@ -203,7 +197,7 @@ check "install with a separate workspace"        ei --workspace specs/checkout
 check "config records the workspace"             grep -qx 'workspace = "specs/checkout"' "$EP/agent-kit.toml"
 check "brief is in the workspace"                test -f "$EP/specs/checkout/brief/requirements.md"
 check "nothing is added at the root"             test ! -e "$EP/brief" -a ! -e "$EP/.workflow"
-check "wrappers are in the chosen folder"        test -x "$EP/tools/agent-kit/spec.sh" -a -x "$EP/tools/agent-kit/readiness.sh"
+check "wrappers are in the chosen folder"        test -x "$EP/tools/agent-kit/spec.sh" -a -x "$EP/tools/agent-kit/check.sh"
 check "no scripts/ folder is created"            test ! -e "$EP/scripts"
 check "gitignore covers logs in any workspace"   grep -qxF '**/.workflow/logs/' "$EP/.gitignore"
 check "the gate rule is limited to agent-kit tasks" grep -q "Other work follows the normal project rules" "$EP/AGENTS.md"
@@ -219,21 +213,21 @@ printf '# Brief\nAdd a checkout page to the shop.\n' > "$EP/specs/checkout/brief
 ek_steps() {
   local c="$1"
   shift
-  ek env FAKE_EXPECT_SKILL=discover FAKE_EXPECT_TEXT="The project's code and other docs are in $EP." \
+  ek env FAKE_EXPECT_SKILL=define-requirements FAKE_EXPECT_TEXT="The project's code and other docs are in $EP." \
     "../tools/agent-kit/$c.sh" "$@"
 }
 check "the steps run from a subfolder through nested wrappers" run_steps ek_steps
-check "spec docs are written in the workspace"   test -s "$EP/specs/checkout/docs/05-technical-spec.md"
+check "spec docs are written in the workspace"   test -s "$EP/specs/checkout/docs/02-design.md"
 check "tasks are written in the workspace"       test -s "$EP/specs/checkout/tasks/001-setup/task.md"
 check "the project's docs/ and tasks/ are untouched" test "$(ls "$EP/docs")" = api.md -a "$(ls "$EP/tasks")" = deploy.yml
 check "Claude runs in the workspace"             sh -c "! grep -v 'cwd=$EP/specs/checkout\$' '$EK_LOG'"
 check "Claude may read the project root"         sh -c "! grep -v 'adddir=$EP ' '$EK_LOG'"
-check "stage writes are relative to the workspace" grep -q 'skill=design-ux agent= stage=spec allow=docs/03-ux-design.md' "$EK_LOG"
+check "stage writes are relative to the workspace" grep -q 'skill=design-solution agent= stage=spec allow=docs/02-design.md ' "$EK_LOG"
 
 check "a second workspace (flag after the command)" ek ../.agent-kit/bin/agent-kit init --dir .. -w specs/search
 check "the config default stays"                grep -qx 'workspace = "specs/checkout"' "$EP/agent-kit.toml"
 check "the second workspace has a brief template" grep -q agent-kit:brief-template "$EP/specs/search/brief/requirements.md"
-check_fails "the second workspace refuses its template brief" ek ../tools/agent-kit/spec.sh discover --workspace specs/search
+check_fails "the second workspace refuses its template brief" ek ../tools/agent-kit/spec.sh define-requirements --workspace specs/search
 check_fails "a missing workspace is an error, not created" ek ../tools/agent-kit/gate.sh -w specs/nope
 check "a missing workspace is not created"       test ! -e "$EP/specs/nope"
 mkdir -p "$WORK/outside"
@@ -270,13 +264,13 @@ check "new project: init with the global command"   gp "$WORK/new-app" "$GAK" in
 printf '# Brief\nA small notes app.\n' > "$WORK/new-app/brief/requirements.md"
 gp_new() { gp "$WORK/new-app" "$GAK" "$@"; }
 check "new project: the steps with the global command" run_steps gp_new
-check "new project: specs at the project root"      test -s "$WORK/new-app/docs/06-validation.md"
+check "new project: specs at the project root"      test -s "$WORK/new-app/docs/02-design.md"
 check_fails "existing project: plain init refuses its own docs/" gp "$WORK/old-app" "$GAK" init
 check "existing project: init a feature workspace"  gp "$WORK/old-app" "$GAK" -w specs/notes init
 printf '# Brief\nAdd notes to the app.\n' > "$WORK/old-app/specs/notes/brief/requirements.md"
 gp_old() { gp "$WORK/old-app/src" "$GAK" "$@"; }
 check "existing project: the steps from a subfolder" run_steps gp_old
-check "existing project: specs in the workspace"    test -s "$WORK/old-app/specs/notes/docs/06-validation.md"
+check "existing project: specs in the workspace"    test -s "$WORK/old-app/specs/notes/docs/02-design.md"
 check "existing project: own docs untouched"        test "$(ls "$WORK/old-app/docs")" = readme.md
 check "no kit copy, wrappers or editor settings in projects" \
   test ! -e "$WORK/new-app/.agent-kit" -a ! -e "$WORK/new-app/.claude" -a ! -e "$WORK/new-app/scripts" \

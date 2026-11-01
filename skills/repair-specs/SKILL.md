@@ -1,44 +1,44 @@
 ---
 name: repair-specs
-description: Fix blocking review findings in the spec documents and keep later documents consistent. Used by the review loop.
+description: Fix blocking review findings in the spec documents (requirements, design, plan and task files) and keep them consistent.
 disable-model-invocation: true
 ---
 
+## Ground rules
+
+- A fact needs a source: path:line, a quote or command output. Mark anything else as an assumption or your call.
+- Never invent names, values, APIs or results. Mark outside facts (versions, limits, prices) `unverified`.
+- A check you didn't run is "not run". A guess that would change scope, a contract or data: ask, or record it as an open decision.
+
 ## Reads
 
-Documents are named by role. Paths: from the request.
+Documents are named by role. Paths: from the request; else find the project's matching files.
 
-- The findings file named in the request (its `blocking` list)
-- The brief, and the spec documents: requirements, PRD, UX design, architecture, technical spec, validation
+- The findings named in the request
+- The brief, the requirements, the design, the plan and the task files
 
 ## Writes
 
-- Only the spec documents that need a change
+- Only the documents that need a change
 
 ## Method
 
-Next round's reviewers are fresh and see only the docs: every fix must be visible in the text.
+The next reviewer is fresh and sees only the documents: every fix must be visible in the text.
 
-1. Read all findings first; group by root cause and fix each cause once.
-2. Check each against the text (a recommendation is a suggestion, not an order) and give one outcome:
-   - Fixed: a real problem you can fix without an owner's choice.
-   - Disputed: the text already covers it; make that easy to find (pointer, sentence, clearer word) and say why in the log.
-   - Awaiting owner decision: needs a call on scope, budget, legal or direction, or conflicts with the brief. Add it under "Open decisions" in the owning doc (the PRD if unsure) with ID, 2–3 options and recommendation. This records the choice but doesn't fix the defect: it keeps its real severity, the next review reports it, and the loop may end BLOCKED. Never reword to make it look smaller.
-3. Fix at the owner: REQs in the requirements; FR/NFR/AC in the PRD; screens in the UX design; ADRs in the architecture; contracts in the technical spec; feasibility in the validation. Others point to it, not copy. Critical before major, earlier docs first. Smallest full fix; no features the brief doesn't need. Never renumber or reuse IDs; new items get the next number.
-4. Grep the spec documents for each changed ID, name or value and update every later active hit (UX screens, active ADRs, technical-spec contracts/tests/traceability, validation). Leave history alone: revision logs, quoted evidence, superseded ADRs.
-5. Revision log at the end of each changed doc, one line per change: `Round N | <reviewer> <severity>: <issue> | <change, or "awaiting owner decision <ID>"> | <sections>` (N from the request). A changed decision states old and new value.
-6. Re-read each fix: would a fresh reviewer still raise it? Then it isn't fixed.
-
-Batch all edits per document.
+1. Read all findings; group them by root cause; fix each cause once.
+2. Per finding, one outcome:
+   - Fixed: a real problem you can fix without the owner.
+   - Disputed: the text already covers it; make that easier to find and say why.
+   - Needs the owner (scope, budget, legal, direction, or it conflicts with the brief): add a `DEC` under Open decisions in the owning document. The defect keeps its severity.
+3. Fix where it's owned (requirement, ADR, contract, task), then grep each changed ID, name or value and update every later active mention.
+4. Log one line per finding at the end of each changed document: `Round N | <severity>: <issue> | <change or DEC-00N> | <sections>`.
 
 ## Rules
 
-- No application code; the brief untouched.
-- Never hide a finding by deleting or weakening a requirement or talking down severity. Human decisions go under "Open decisions".
-- Change only what the findings need.
+- Brief untouched; no application code.
+- Never hide a finding by weakening a requirement or talking down severity.
+- Never renumber or reuse IDs.
 
 ## Done when
 
-- Every blocking finding is fixed, disputed in the text, or an Open decision with ID.
-- Every finding has a log line.
-- No old value remains in active text; the ID chain still holds.
+- Every finding has an outcome and a log line; no old value is left in active text.

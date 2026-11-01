@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # agent-kit: the spec pipeline for a project, one step per command.
-#   brief -> specs -> independent review -> task plan -> readiness -> human approval -> gate
+#   brief -> requirements -> design -> task plan -> checks + independent review -> human approval -> gate
 # Each command runs one step and checks its inputs. You (or your own script)
 # choose the order and the retries. Claude does the thinking inside a step.
 set -euo pipefail
@@ -19,7 +19,7 @@ resolve_dir() {
 AGENT_KIT_HOME="$(cd "$(resolve_dir "${BASH_SOURCE[0]}")/.." && pwd)"
 export AGENT_KIT_HOME
 
-for f in common engine init spec review plan gate doctor; do
+for f in common engine init spec review plan check gate doctor; do
   # shellcheck source=/dev/null
   source "$AGENT_KIT_HOME/lib/$f.sh"
 done
@@ -40,13 +40,14 @@ Setup
 
 Steps (run inside a project, one at a time, in this order)
   spec STAGE             A. Run one spec stage; it writes one document in docs/
-  review                 B. One review round by read-only reviewers in parallel
+  plan                   B. Write docs/03 plan and tasks/
+  check                  C. Spec checks in code (no AI): open decisions, coverage,
+                            task files; exit 2 = problems found
+  review                 C. One review round by the read-only reviewer
                             exit 2 = blocking findings: run repair, then review again
-  repair                 B. Fix the blocking findings of the last review
-  plan                   C. Write docs/07 plan and tasks/ (needs a passed review)
-  readiness              C. Write docs/08 and the verdict; exit 2 = NOT_READY
+  repair                 C. Fix the blocking findings of the last review
   approve                D. A person approves the current baseline (brief, docs, tasks)
-  gate                   D. Hard checks; exit 0 only when ready AND approved
+  gate                   D. Hard checks; exit 0 only when checked, reviewed AND approved
 
   Exit codes: 0 = done, 1 = error or missing input, 2 = the step found work to do.
 
@@ -54,8 +55,7 @@ Other
   version                Print the kit version
   help                   Show this help
 
-Spec stages, in order: discover, define-product, design-ux, design-architecture,
-                       design-technical, validate-feasibility
+Spec stages, in order: define-requirements, design-solution
 EOF
 }
 
@@ -80,7 +80,7 @@ case "$cmd" in
   review)          need_tools claude jq yq; ak_review "$@" ;;
   repair)          need_tools claude jq yq; ak_repair "$@" ;;
   plan)            need_tools claude jq yq; ak_plan "$@" ;;
-  readiness)       need_tools claude jq yq; ak_readiness "$@" ;;
+  check)           need_tools jq yq; ak_check "$@" ;;
   gate)            need_tools jq yq; ak_gate "$@" ;;
   approve)         need_tools jq yq; ak_approve "$@" ;;
   version)         cat "$AGENT_KIT_HOME/VERSION" ;;
