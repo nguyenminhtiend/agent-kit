@@ -17,8 +17,8 @@ Main idea:
 
 > Status: steps 1–3 are built (brief → requirements → design → plan → checks and
 > review → approval → gate). The build stage (worktrees, coding, code review) is not
-> built yet. Its skills (`build-task`, `fix-review`, `fix-bug`, `optimize`) and
-> `code-reviewer` are written but not used by the runner yet. Where each file's ideas come from:
+> built yet. Its skills (`build-task`, `fix-bug`) and `code-reviewer` are written
+> but not used by the runner yet. Where each file's ideas come from:
 > [CREDITS.md](CREDITS.md).
 
 Works in new and existing projects, small or big, solo or team. See
@@ -31,7 +31,7 @@ All paths below are inside the **workspace** (see [Workspaces](#workspaces)). Ea
 line is one command; [Use](#use-one-step-at-a-time) lists the input and output of each.
 
 ```
-brief/requirements.md                          (you write it, or /plan-idea writes it)
+brief/requirements.md                          (you write it, alone or with Claude)
   │
   ▼  A. spec       agent-kit spec define-requirements  → docs/01-requirements.md
   │                agent-kit spec design-solution      → docs/02-design.md
@@ -165,10 +165,9 @@ before calling Claude and names the command that fixes it.
   rounds are kept so you can compare them.
 - After blocking findings, run `repair` or fix the docs yourself; then `review` again.
 - `plan` moves old tasks to `.workflow/archive/` before it writes new ones.
-- Open decisions (`check` lists them): answer them with
-  `/plan-idea answer the open decisions in docs/02-design.md` (or write them yourself
-  in the brief's `## Decisions` section as `DEC-001: <answer> (<date>)`), then run
-  the steps again from `spec define-requirements`.
+- Open decisions (`check` lists them): write your answers in the brief's
+  `## Decisions` section as `DEC-001: <answer> (<date>)` (yourself, or ask Claude
+  to ask you them one by one), then run the steps again from `spec define-requirements`.
 - Run `check` before `review`: it is free and finds the mechanical problems first.
 - Every command prints the command to run next.
 
@@ -255,11 +254,11 @@ agent-kit/
 Edit the method sections. Skills and agents name documents by role ("the
 requirements", "the design"), never by path: the runner sends a role-to-path list with
 every call, built from the names in `lib/common.sh` (change file names only there).
-Keep the roles in **Reads / Writes** as they are; other stages depend on them.
+Keep the roles in **Input and output** as they are; other stages depend on them.
 Every skill and agent must also work alone, copied into any project or sent to a
 teammate: never name agent-kit, the runner or the pipeline in them. Keep the text
-short: agents load every word. Every skill starts with the same three ground rules
-(sources for facts, nothing invented, nothing claimed without a run); keep them. Record any new source in `CREDITS.md`.
+short: agents load every word. Every skill starts with the same two ground rules
+(sources for facts and nothing invented; ask or record guesses that change scope); keep them. Record any new source in `CREDITS.md`.
 `tests/smoke.sh` fails if a skill or agent names a workspace path, agent-kit or the runner.
 
 | File                               | What goes there                                         |
@@ -269,13 +268,10 @@ short: agents load every word. Every skill starts with the same three ground rul
 | `skills/design-solution`           | One design: decisions, parts, data, contracts, screens if any, risks |
 | `skills/plan-tasks`                | Slicing work into small, ordered, testable tasks        |
 | `skills/repair-specs`              | Fixing review findings without breaking other docs      |
-| `skills/plan-idea`                 | Talking a feature or idea through and agreeing a plan; answering open decisions |
-| `skills/build-task`                | Building one task, test-first, with verification        |
-| `skills/fix-review`                | Handling code review feedback                           |
+| `skills/build-task`                | Building one task test-first, then an independent review |
 | `skills/fix-bug`                   | Root-cause debugging                                    |
-| `skills/optimize`                  | Measured optimization                                   |
 | `agents/spec-reviewer.md`          | Spec review checklist                                   |
-| `agents/code-reviewer.md`          | Code review checklist                                   |
+| `agents/code-reviewer.md`          | Checking a change against its task, contracts and tests |
 
 All skills are **switched off for automatic use** (`disable-model-invocation: true`
 for Claude, `allow_implicit_invocation: false` for Codex). The spec skills stay

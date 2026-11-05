@@ -6,20 +6,13 @@ disable-model-invocation: true
 
 ## Ground rules
 
-- A fact needs a source: path:line, a quote or command output. Mark anything else as an assumption or your call.
-- Never invent names, values, APIs or results. Mark outside facts (versions, limits, prices) `unverified`.
-- A check you didn't run is "not run". A guess that would change scope, a contract or data: ask, or record it as an open decision.
+- Every fact cites a source (path:line, quote or command output); anything else is an assumption. Never invent names, values, APIs or results; mark outside facts (versions, limits, prices) `unverified`.
+- A guess that would change scope, a contract or data: ask, or record it as an open decision.
 
-## Reads
+## Input and output
 
-Documents are named by role. Paths: from the request; else find the project's matching files.
-
-- The findings named in the request
-- The brief, the requirements, the design, the plan and the task files
-
-## Writes
-
-- Only the documents that need a change
+- Reads: the findings named in the request; the brief, the requirements, the design, the plan and the task files.
+- Writes only the documents that need a change; never the brief.
 
 ## Method
 
@@ -35,10 +28,5 @@ The next reviewer is fresh and sees only the documents: every fix must be visibl
 
 ## Rules
 
-- Brief untouched; no application code.
+- No application code. Never renumber or reuse IDs.
 - Never hide a finding by weakening a requirement or talking down severity.
-- Never renumber or reuse IDs.
-
-## Done when
-
-- Every finding has an outcome and a log line; no old value is left in active text.

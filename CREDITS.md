@@ -14,6 +14,8 @@ The rules, skills and agents in this kit were written for agent-kit. They paraph
 
 On 2026-11-01 the kit was cut to 9 skills and 2 agents. A merged file lists the sources of every file it replaced; it keeps only a subset of those ideas. Two research ideas shaped that cut, but no text came from them: the test "would the agent get this wrong without this instruction?" ([agentskills.io best practices](https://agentskills.io/skill-creation/best-practices)) and the three-document shape of requirements, design and tasks ([Kiro specs](https://kiro.dev/docs/specs/), [Spec Kit](https://github.com/github/spec-kit)).
 
+On 2026-11-05 the kit was cut to 6 skills: plan-idea (replaced by Claude Code's plan mode), fix-review (merged into build-task) and optimize were removed, and their source lists with them, except fix-review's, which moved to build-task.
+
 ## Sources per file
 
 ### rules/engineering.md
@@ -36,22 +38,6 @@ From the former `refactor`:
 - mattpocock [skills/engineering/code-review/SKILL.md](https://github.com/mattpocock/skills/blob/a496f5513d4a4cf889bc48e189e579f4b0bdf6aa/skills/engineering/code-review/SKILL.md) L43-56: Named moves (duplicated code, mysterious name, data clumps, repeated switches, middle man, speculative generality, feature envy)
 - mattpocock [skills/engineering/codebase-design/SKILL.md](https://github.com/mattpocock/skills/blob/a496f5513d4a4cf889bc48e189e579f4b0bdf6aa/skills/engineering/codebase-design/SKILL.md) L63: Deletion test
 - mattpocock [skills/engineering/to-tickets/SKILL.md](https://github.com/mattpocock/skills/blob/a496f5513d4a4cf889bc48e189e579f4b0bdf6aa/skills/engineering/to-tickets/SKILL.md) L23: When to use: "make the change easy, then make the easy change"
-
-### skills/plan-idea/SKILL.md
-
-Read on 2026-11-01 at the same pinned commits.
-
-- addy [.claude/commands/plan.md](https://github.com/addyosmani/agent-skills/blob/8bfcc1f9916f2eea55494d8c1fa7f4bde867dd9e/.claude/commands/plan.md) L19: Never overwrite another unfinished plan
-- addy [skills/interview-me/SKILL.md](https://github.com/addyosmani/agent-skills/blob/8bfcc1f9916f2eea55494d8c1fa7f4bde867dd9e/skills/interview-me/SKILL.md) L20, L26-32, L34-36, L53-69, L55-77, L79-92, L94-111, L113-130, L117, L132-140: Ground to cover (who, why, success, constraint); Not for clear asks; No one to ask: list the questions, don't guess; One question per message; Recommended answer attached; Buzzword answers: ask what it must do; Play back incl. out of scope; Explicit yes ("sounds good" is not yes), offer the next step and stop; "Whatever you think": re-ask with two options; Stop when you can predict the next three answers, else step back
-- ecc [commands/plan.md](https://github.com/affaan-m/ecc/blob/b38be6a7f6350964d59328b52f0624e1d1d552d1/commands/plan.md) L51-63, L69-110: Patterns to follow with path:line, or "none found"; Plan template: files to change, validation commands, risks
-- karpathy [skills/karpathy-guidelines/SKILL.md](https://github.com/multica-ai/andrej-karpathy-skills/blob/2c606141936f1eeef17fa3043a72095b4765b9c2/skills/karpathy-guidelines/SKILL.md) L20, L25-29, L60-65: Push back; Smallest version, no unasked features; Steps as `step -> verify: check`
-- mattpocock [.out-of-scope/native-question-tool.md](https://github.com/mattpocock/skills/blob/a496f5513d4a4cf889bc48e189e579f4b0bdf6aa/.out-of-scope/native-question-tool.md) L5-11: Names no question tool, so the same file runs in Claude Code and Codex
-- mattpocock [.out-of-scope/question-limits.md](https://github.com/mattpocock/skills/blob/a496f5513d4a4cf889bc48e189e579f4b0bdf6aa/.out-of-scope/question-limits.md) L9-12: The user may stop the interview any time
-- mattpocock [skills/engineering/to-spec/SKILL.md](https://github.com/mattpocock/skills/blob/a496f5513d4a4cf889bc48e189e579f4b0bdf6aa/skills/engineering/to-spec/SKILL.md) L13, L15-17, L43-55, L67-69: Read decision records; Test at an existing seam; Decisions (modules, interfaces, schema, API); Out of scope
-- mattpocock [skills/productivity/grilling/SKILL.md](https://github.com/mattpocock/skills/blob/a496f5513d4a4cf889bc48e189e579f4b0bdf6aa/skills/productivity/grilling/SKILL.md) L6-8, L24, L26, L28, L30: Ask only what earlier answers allow, a few numbered at once, each with a recommended answer; Worded so "yes" accepts it; Dependent questions wait for a later round; Facts are your job (a subagent searches meanwhile), decisions the user's; Done only when the user confirms
-- superpowers [skills/brainstorming/SKILL.md](https://github.com/obra/superpowers/blob/2ce8aa15d05bd57213e6f746f953aafb7ded7a8b/skills/brainstorming/SKILL.md) L22-24, L38-45, L49-63, L88-101, L103-111, L113-122, L124-132, L139-148, L170-180, L188-201, L205-206, L210-218, L224-226, L228-245, L247-257, L268, L271: Not for clear asks; Look before you ask, never ask what the project answers; First message (~200 words, echo, findings, what changes the ask, one question); Plain words, open questions first, options when stuck; Decide small details out loud, your choices marked as your call; Ground to cover (problem, why now, success, non-goals, current state); Specific questions, say what the answer changes; Approaches in their own message, 2–3, recommend one; Play back, only what they said is theirs; Size the plan to the work; Several independent projects: agree an order; Plan a builder can work from without asking; Plan location: the user's choice; Builder check and the three piles; Nothing built before approval, what counts as building, the spike exception; A default they never heard; Approval covers only what you showed
-- superpowers [skills/brainstorming/builder-check-prompt.md](https://github.com/obra/superpowers/blob/2ce8aa15d05bd57213e6f746f953aafb7ded7a8b/skills/brainstorming/builder-check-prompt.md) L7-22: Builder check: a reader who can't ask lists where a wrong guess would matter
-- superpowers [skills/writing-plans/SKILL.md](https://github.com/obra/superpowers/blob/2ce8aa15d05bd57213e6f746f953aafb7ded7a8b/skills/writing-plans/SKILL.md) L10: Write down what you decided (files, names, values, tests)
 
 ### skills/define-requirements/SKILL.md
 
@@ -180,8 +166,7 @@ From the former `validate-feasibility`:
 - superpowers [skills/using-git-worktrees/SKILL.md](https://github.com/obra/superpowers/blob/2ce8aa15d05bd57213e6f746f953aafb7ded7a8b/skills/using-git-worktrees/SKILL.md) L121-131: Run the full suite first; stop if the base is red
 - superpowers [skills/verification-before-completion/SKILL.md](https://github.com/obra/superpowers/blob/2ce8aa15d05bd57213e6f746f953aafb7ded7a8b/skills/verification-before-completion/SKILL.md) L22-36, L94-98: Run all checks, read output and exit code, tick each criterion against a test
 
-### skills/fix-review/SKILL.md
-
+Merged from skills/fix-review/SKILL.md on 2026-11-05 (its review-fix rules are now build-task's review step):
 - addy [skills/code-review-and-quality/SKILL.md](https://github.com/addyosmani/agent-skills/blob/8bfcc1f9916f2eea55494d8c1fa7f4bde867dd9e/skills/code-review-and-quality/SKILL.md) L179-193, L260-267, L387-395: Correctness and security first; Decline with evidence, not opinion; say what you would need
 - ecc [agents/code-reviewer.md](https://github.com/affaan-m/ecc/blob/b38be6a7f6350964d59328b52f0624e1d1d552d1/agents/code-reviewer.md) L36: Fix every place the same problem appears
 - superpowers [skills/receiving-code-review/SKILL.md](https://github.com/obra/superpowers/blob/2ce8aa15d05bd57213e6f746f953aafb7ded7a8b/skills/receiving-code-review/SKILL.md) L14-25, L18-24, L27-38, L40-48, L67-84, L76-83, L79-80, L88-98, L100-111, L113-127, L131-148, L164-174: Read every finding before changing anything; items may be linked; Check each finding against the code (breaks things? reason for current code? reviewer has context?); Reasons to decline; Grep for callers before building "proper" support (YAGNI); "Needs a person" verdict, do not guess; No polite agreement, no "great catch", state the fix; Order: blocking first, then simple, then complex; One at a time, test each; Decline with evidence, not opinion; say what you would need
@@ -198,13 +183,6 @@ From the former `validate-feasibility`:
 - superpowers [skills/systematic-debugging/condition-based-waiting.md](https://github.com/obra/superpowers/blob/2ce8aa15d05bd57213e6f746f953aafb7ded7a8b/skills/systematic-debugging/condition-based-waiting.md) L1-7: Flaky test → wait for the real condition
 - superpowers [skills/systematic-debugging/root-cause-tracing.md](https://github.com/obra/superpowers/blob/2ce8aa15d05bd57213e6f746f953aafb7ded7a8b/skills/systematic-debugging/root-cause-tracing.md) L5-7: Trace the bad value back to its source
 - superpowers [skills/verification-before-completion/SKILL.md](https://github.com/obra/superpowers/blob/2ce8aa15d05bd57213e6f746f953aafb7ded7a8b/skills/verification-before-completion/SKILL.md) L38-48
-
-### skills/optimize/SKILL.md
-
-- addy [references/performance-checklist.md](https://github.com/addyosmani/agent-skills/blob/8bfcc1f9916f2eea55494d8c1fa7f4bde867dd9e/references/performance-checklist.md) L222-239: Blocking I/O on a hot path
-- addy [skills/performance-optimization/SKILL.md](https://github.com/addyosmani/agent-skills/blob/8bfcc1f9916f2eea55494d8c1fa7f4bde867dd9e/skills/performance-optimization/SKILL.md) L8-10, L12-20, L121-123, L127-131, L131, L139-147, L139-158, L145, L160, L162-172, L174-189, L226-231, L233-249, L251-267: When to use: measured problem; not without evidence; Repeatable baseline, fixed conditions, several runs, noise; Find the bottleneck from evidence; Usual suspects N+1, no pagination, index (read the plan), caching; Fix only the one bottleneck; Re-measure the same way; keep/revert table; "neutral is a revert"; Log every attempt, kept and reverted; Guard the win (benchmark / budget test); No optimization without baseline and bottleneck; Correctness first; a win that skips needed work is a bug; One change per measurement; Keep only measured wins (sunk cost); Cache key includes every input; state staleness; never cache must-be-fresh data
-- ecc [agents/performance-optimizer.md](https://github.com/affaan-m/ecc/blob/b38be6a7f6350964d59328b52f0624e1d1d552d1/agents/performance-optimizer.md) L69-80: Repeated work in loops, list search → map
-- ecc [skills/benchmark-optimization-loop/SKILL.md](https://github.com/affaan-m/ecc/blob/b38be6a7f6350964d59328b52f0624e1d1d552d1/skills/benchmark-optimization-loop/SKILL.md) L15-26, L15-23, L28-37, L50-61, L60-61, L63-71: Frame (operation, metric, correctness gate, budget); Find the bottleneck from evidence; Repeat; stop at target, budget, or noise; Report exact commands and numbers; "best measured", not "optimal"
 
 ### agents/spec-reviewer.md
 

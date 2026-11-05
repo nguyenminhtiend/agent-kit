@@ -33,7 +33,7 @@ RUNTIME_ITEMS="VERSION bin lib hooks schemas rules templates skills agents"
 # Commands that get a wrapper in <project>/scripts/.
 WRAPPER_COMMANDS="spec plan check review repair approve gate"
 # Names from older kit versions. A project install warns when they are still there.
-RETIRED_SKILLS="discover define-product design-ux design-architecture design-technical validate-feasibility assess-readiness refactor"
+RETIRED_SKILLS="discover define-product design-ux design-architecture design-technical validate-feasibility assess-readiness refactor plan-idea fix-review optimize"
 RETIRED_AGENTS="product-reviewer architecture-reviewer qa-reviewer"
 RETIRED_WRAPPERS="readiness"
 

@@ -72,12 +72,12 @@ Once you know the steps, you can chain them in your own script: see
 | 3 | Existing project, small, solo | `specs/<feature>` | pipeline for a feature |
 | 4 | Existing project, big, company (monorepo) | `specs/<feature>`, per service | pipeline, full settings, gate in CI |
 | 5 | Small change in any project (bug, clean-up, speed) | none, no init | one skill only |
-| 6 | New feature or idea in any project, agreed by talking it through | none, no init | `plan-idea`, then `build-task` |
+| 6 | New feature or idea in any project, agreed by talking it through | none, no init | plan mode, then `build-task` |
 
 Rule of thumb: use the pipeline when the work needs a reviewed, approved plan (a
 new product, a feature of several days, or a team that signs off). For a change you can explain in two sentences,
 skip the pipeline and use one skill (case 5). For a new feature or idea you want to
-talk through and agree with Claude before building, use `plan-idea` (case 6).
+talk through and agree with Claude before building, use plan mode (case 6).
 
 ## The parts, in short
 
@@ -90,11 +90,10 @@ talk through and agree with Claude before building, use `plan-idea` (case 6).
 | `agent-kit repair`: skill `repair-specs` | Fixes the blocking findings of the last review | you, after `review` exits 2 |
 | `agent-kit approve` | You accept the specs and tasks | you, in a terminal |
 | `agent-kit gate` | Says if coding may start (exit 0 = yes) | you or CI |
-| Skill `plan-idea` | Interviews you about a feature or idea and writes a plan you agree to; also asks you the open decisions | you, in Claude Code or Codex |
-| Build skills: `build-task`, `fix-review`, `fix-bug`, `optimize` | Write and fix code | you, in Claude Code or Codex |
-| `code-reviewer` agent | Reviews a code change, read only (in Codex: by instruction only) | you, in Claude Code or Codex |
+| Build skills: `build-task`, `fix-bug` | Write and fix code; `build-task` also gets its change reviewed | you, in Claude Code or Codex |
+| `code-reviewer` agent | Checks a code change against its task, contracts and tests, read only (in Codex: by instruction only) | `build-task`, or you |
 
-Build skills and `plan-idea` never start on their own. Call them by name: `/build-task ...` in
+Build skills never start on their own. Call them by name: `/build-task ...` in
 Claude Code, `$build-task ...` in Codex.
 
 ---
@@ -122,8 +121,8 @@ trip-splitter/
 ```bash
 mkdir trip-splitter && cd trip-splitter && git init
 agent-kit init
-# write brief/requirements.md (delete the template marker line), or let
-# /plan-idea write it with you; then run the steps one by one:
+# write brief/requirements.md (delete the template marker line), alone or
+# with Claude; then run the steps one by one:
 agent-kit spec define-requirements
 agent-kit spec design-solution
 agent-kit plan
@@ -178,9 +177,9 @@ None.
 
 **Then:**
 
-1. If `check` lists open decisions (exit 2), answer them:
-   `/plan-idea answer the open decisions in docs/02-design.md` writes your answers
-   into the brief. Then run the steps again from `agent-kit spec define-requirements`.
+1. If `check` lists open decisions (exit 2), answer them in the brief's
+   `## Decisions` as `DEC-001: <answer> (<date>)` (or ask Claude to ask you them one
+   by one and write the answers). Then run the steps again from `agent-kit spec define-requirements`.
 2. `agent-kit approve` (type `APPROVE`), then `agent-kit gate`.
 3. Build one task at a time (see [Build prompts](#build-prompts)).
 
@@ -365,7 +364,7 @@ The "Existing code" section matters most here. The spec stages read that code
 and design the change around it: same stack, same patterns, and current
 behavior kept safe by "Must not" criteria and regression tests.
 
-Small feature? Case 6 (`plan-idea`, then `build-task`) is often enough.
+Small feature? Case 6 (plan mode, then `build-task`) is often enough.
 
 **Cost:** use the low-cost settings from case 1 if the feature is small.
 
@@ -438,11 +437,11 @@ scripts or CI.
 |---------|-------|----------------|
 | Something is broken | `fix-bug` | `/fix-bug Checkout returns 500 when the cart is empty. Steps: log in, empty the cart, click Pay. Error from the server log: <paste>` |
 | Code works but is hard to change | no kit skill: ask, or use the built-in `/simplify` | `src/billing/invoice.ts repeats the tax math in 3 functions. Make adding a new tax rate easy. No behavior change.` (the engineering rules keep tests green and expected values unchanged) |
-| It is too slow or costs too much | `optimize` | `/optimize GET /orders takes 1.8 s at p95 with 10k orders. Target: 300 ms. Measure with: npm run bench:orders` |
-| A reviewer left comments | `fix-review` | `/fix-review Fix the findings from the review above in the change on this branch.` |
-| You want a second opinion on a change | `code-reviewer` agent | `Use the code-reviewer agent to review this branch. Give it the full diff against main.` |
+| It is too slow or costs too much | no kit skill: give the target and how to measure | `GET /orders takes 1.8 s at p95 with 10k orders. Target: 300 ms. Measure with: npm run bench:orders. Keep a change only if the numbers show it.` |
+| A reviewer left comments | no kit skill: ask | `Fix the review comments above on this branch. Decline wrong ones with evidence.` |
+| You want a second opinion on a change | `code-reviewer` agent (against a task), or the built-in `/code-review` (bug hunt) | `Use the code-reviewer agent to review this branch against plans/orders-csv-export.md. Give it the full diff against main.` |
 
-In Codex, use `$fix-bug`, `$optimize`, and so on.
+In Codex, use `$fix-bug`.
 
 ---
 
@@ -451,23 +450,21 @@ In Codex, use `$fix-bug`, `$optimize`, and so on.
 No pipeline, no init. Use it when you have a new feature, a new requirement or
 just an idea, and want to agree how to do it before any code is written.
 
-What happens: Claude reads the related code first (it never asks what the code
-already answers), then asks one question at a time, each with its recommended
-answer. It shows 2 or 3 ways to build it and recommends one; you pick. It writes
-a plan and waits for your explicit "yes", then marks the plan `Status: Agreed`.
-Nothing is built before that. You can stop the questions at any time; it then
-marks the open points as its own calls.
+Use Claude Code's plan mode (`/plan ...`, or Shift+Tab). Claude reads the code,
+asks you questions and shows a plan. It edits nothing until you approve the plan.
+Ask it to save the approved plan in the project so `build-task` can read it.
 
 ```
-/plan-idea Users want to export their orders as CSV from the orders page. Save the plan in plans/.
+/plan Users want to export their orders as CSV from the orders page. Save the approved plan in plans/.
 ```
 
 ```
-/plan-idea Idea: email users when a saved cart is 3 days old. Not sure it is worth it yet.
+/plan Idea: email users when a saved cart is 3 days old. Not sure it is worth it yet.
 ```
 
-After you say yes, build from the plan, then review and fix as in
-[Build prompts](#build-prompts):
+In Codex, ask it to plan first and to wait for your yes.
+
+After you approve, build from the plan (see [Build prompts](#build-prompts)):
 
 ```
 /build-task plans/orders-csv-export.md
@@ -475,15 +472,13 @@ After you say yes, build from the plan, then review and fix as in
 
 Use the pipeline (cases 1 to 4) instead when the work needs independent reviews
 and a formal approval: a new product, a feature of several days or more, or a
-team that signs off on specs. `plan-idea` is one person agreeing a plan with Claude.
+team that signs off on specs. Plan mode is one person agreeing a plan with Claude.
 
 More uses:
 
-- Too big for one plan? `/plan-idea ... Write it as the brief for specs/<feature>.`
-  Then run the pipeline from `agent-kit spec define-requirements`.
-- Open decisions from `check` or a review: `/plan-idea answer the open decisions in docs/02-design.md`.
-  It asks them one by one and writes your answers into the brief's `## Decisions`.
-- An agreed plan with many steps: `plan-tasks` can split it into task files
+- Too big for one plan? Ask Claude to write the agreed plan as the brief for
+  specs/<feature>, then run the pipeline from `agent-kit spec define-requirements`.
+- An approved plan with many steps: `plan-tasks` can split it into task files
   (`/plan-tasks plans/orders-csv-export.md`).
 
 ---
@@ -499,28 +494,28 @@ Use the task folder path (inside the workspace).
 /build-task specs/gift-cards/tasks/002-buy-card
 ```
 
-**2. Review it with a fresh agent** (the reviewer cannot run git, so give it the diff)
+It builds test-first, then starts a fresh `code-reviewer` subagent on its diff,
+fixes the valid findings and declines wrong ones with evidence, for up to 3 review
+rounds. Its report lists each finding as FIXED, DECLINED or NEEDS_DECISION.
 
-```
-Use the code-reviewer agent to review task specs/gift-cards/tasks/002-buy-card.
-Give it the full diff against main including work not yet committed (git diff main),
-the content of new files (git status --short lists them), the task file, and the
-contracts in specs/gift-cards/docs/02-design.md.
-```
+**2. Read the report**
 
-`git diff main...HEAD` (three dots) shows commits only. Before you commit, it is
-empty, so use `git diff main` (two dots) as above.
+- `NEEDS_DECISION` or `BLOCKED`: the spec is wrong or unclear. Do not let it guess:
+  fix the brief or docs, then run `agent-kit plan`, `agent-kit check` and
+  `agent-kit review` again, and approve the new baseline.
+- "review not run" (for example, in Codex): ask for the review yourself:
 
-**3. Fix the findings**
+  ```
+  Use the code-reviewer agent to review task specs/gift-cards/tasks/002-buy-card.
+  Give it the full diff against main including work not yet committed (git diff main),
+  the content of new files (git status --short lists them), the task file, and the
+  contracts in specs/gift-cards/docs/02-design.md.
+  ```
 
-```
-/fix-review Fix the code-reviewer findings above for specs/gift-cards/tasks/002-buy-card.
-```
+  `git diff main...HEAD` (three dots) shows commits only. Before you commit, it is
+  empty, so use `git diff main` (two dots) as above.
 
-Repeat 2 and 3 until the review passes, then commit and go to the next task.
-If a skill stops with `BLOCKED` because the spec is wrong or unclear, do not let
-it guess: fix the brief or docs, then run `agent-kit plan`, `agent-kit check` and
-`agent-kit review` again, and approve the new baseline.
+Then commit and go to the next task.
 
 ## Optional: guard in normal sessions
 
@@ -549,7 +544,7 @@ use those names.
 ## Tips for writing a brief
 
 - Use your own words. Rough notes are fine; the documents list the open questions,
-  and `/plan-idea` can ask them or help you write the brief.
+  and Claude can ask them or help you write the brief.
 - Say who uses it, what they must be able to do, and why.
 - Give numbers instead of "fast", "secure" or "easy" when you know them.
 - Fill in "Existing code" for an existing project: name the folders and the
